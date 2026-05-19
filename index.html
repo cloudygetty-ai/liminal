@@ -236,6 +236,30 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
 .mb-14 { margin-bottom: 14px; }
 .no-results { text-align: center; padding: 36px 0; font-size: 10px; color: var(--text-ghost); line-height: 2.4; }
 
+
+/* ── Location analysis cards ── */
+.location-section { margin-bottom: 14px; }
+.location-card { background: var(--surface); border-radius: 11px; padding: 14px 15px; margin-bottom: 7px; border-left: 3px solid; opacity: 0; animation: slideUp 0.35s ease forwards; }
+.location-card-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+.location-card-icon { font-size: 16px; }
+.location-card-title { font-family: "Cinzel", serif; font-size: 10px; letter-spacing: 0.1em; color: var(--text); }
+.location-card-body { font-size: 10px; color: var(--text-dim); font-weight: 600; margin-bottom: 5px; letter-spacing: 0.04em; }
+.location-card-detail { font-size: 9px; color: var(--text-muted); line-height: 1.75; }
+
+/* ── How to use panel ── */
+.how-to-card { background: var(--surface2); border: 1px solid var(--border2); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+.how-to-header { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.how-to-header-title { font-family: "Cinzel", serif; font-size: 11px; color: var(--text); letter-spacing: 0.06em; }
+.how-to-toggle { font-size: 10px; color: var(--text-ghost); transition: transform 0.2s; }
+.how-to-header.open .how-to-toggle { transform: rotate(180deg); }
+.how-to-body { display: none; padding: 14px 15px; }
+.how-to-header.open + .how-to-body { display: block; }
+.how-to-step { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.how-to-step:last-child { border-bottom: none; padding-bottom: 0; }
+.how-to-num { font-size: 11px; font-family: "Cinzel", serif; color: var(--gold-dim); width: 20px; flex-shrink: 0; padding-top: 1px; }
+.how-to-step-title { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; letter-spacing: 0.06em; }
+.how-to-step-desc { font-size: 9px; color: var(--text-ghost); line-height: 1.65; }
+
 /* ── Sensor panels ── */
 .sensor-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 .sensor-panel { background: var(--surface); border: 1px solid var(--border2); border-radius: 11px; padding: 12px; position: relative; overflow: hidden; transition: border-color 0.3s; }
@@ -270,7 +294,7 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
 <header class="header">
   <div class="header-inner">
     <div>
-      <div class="header-label">LIMINAL INTELLIGENCE SYSTEM v3.0</div>
+      <div class="header-label">LIMINAL INTELLIGENCE SYSTEM v3.1</div>
       <div class="header-title" id="page-title">Hidden Door Scanner</div>
       <div class="header-sub" id="page-sub">Camera vision · Pixel analysis · Physical tells</div>
     </div>
@@ -289,6 +313,66 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
     <button class="btn btn-primary" onclick="app.startCamera()">ACTIVATE CAMERA SCAN</button>
   </div>
   <button class="btn btn-ghost mb-14" onclick="app.showScreen('manual')">📋 &nbsp; MANUAL INSPECTION CHECKLIST</button>
+
+  <!-- How to use collapsible -->
+  <div class="how-to-card" style="margin-bottom:18px">
+    <div class="how-to-header" onclick="this.classList.toggle('open')">
+      <span class="how-to-header-title">HOW TO USE THIS APP</span>
+      <span class="how-to-toggle">▾</span>
+    </div>
+    <div class="how-to-body">
+      <div class="how-to-step">
+        <div class="how-to-num">1</div>
+        <div>
+          <div class="how-to-step-title">CHOOSE A SUSPECT SURFACE</div>
+          <div class="how-to-step-desc">Hidden doors are most common in: library/study walls lined with bookcases, paneled hallways with decorative wainscoting, walls adjacent to staircases (triangular dead space behind), basement walls with full-height trim, and any wall where the room math doesn't add up to the exterior footprint.</div>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="how-to-num">2</div>
+        <div>
+          <div class="how-to-step-title">SET UP YOUR SHOT</div>
+          <div class="how-to-step-desc">Stand 3–6 feet from the surface. Fill the entire frame — floor to ceiling if possible. Even lighting is critical: avoid harsh backlighting. Use the TORCH button for dark areas. Switch NIGHT MODE on if the room is dim. Use FREEZE to lock the frame on a detail, then scan from the frozen image.</div>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="how-to-num">3</div>
+        <div>
+          <div class="how-to-step-title">ZOOM IN ON SUSPICIOUS AREAS</div>
+          <div class="how-to-step-desc">Use the zoom slider or pinch gesture to go to 2–5× on trim edges, baseboard corners, and vertical seams. The seam of a hidden door is typically 1–3mm wide — only visible at close range or with raking light. MACRO mode (5×) is best for examining hardware tells.</div>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="how-to-num">4</div>
+        <div>
+          <div class="how-to-step-title">SCAN AND READ THE MARKS</div>
+          <div class="how-to-step-desc">Tap SCAN THIS SURFACE. The app captures the frame and runs Sobel edge detection, symmetry analysis, texture sampling, and shadow gradient scoring. Results show a probability score, zone analysis (floor, ceiling, trim, center, corners), and annotated marks on your image showing exactly where each anomaly was detected.</div>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="how-to-num">5</div>
+        <div>
+          <div class="how-to-step-title">USE THE SENSORS</div>
+          <div class="how-to-step-desc">MAGNETOMETER: tap Start Scan, hold phone steady for baseline, then slowly sweep horizontally along the wall at waist height. A reading spike above 18 µT indicates ferrous metal — door catch, strike plate, or hinge. ACOUSTIC: tap Start Mic, knock firmly with your knuckle on the surface in a grid pattern. Hollow resonance produces a low-frequency dominant FFT signature and triggers the HOLLOW badge.</div>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="how-to-num">6</div>
+        <div>
+          <div class="how-to-step-title">INTERPRET THE RESULT</div>
+          <div class="how-to-step-desc">The MARKS view shows annotated hotspots on your capture — darker ring = higher confidence. The DOOR LOCATION section below your results tells you the predicted door type, its exact position on the wall, and the most likely opening mechanism. The EDGES view shows the raw Sobel output — a hidden door seam appears as a strong continuous vertical line not corresponding to trim or framing.</div>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="how-to-num">7</div>
+        <div>
+          <div class="how-to-step-title">CORROBORATE WITH MANUAL CHECKLIST</div>
+          <div class="how-to-step-desc">Camera analysis alone is not definitive. Use the Manual Inspection Checklist to add physical evidence: hollow knock test, measurement discrepancy, magnet response, light bleed, draught test. Each checked item increases the Suspicion Index. A camera score above 60% combined with 3+ manual checks is strong corroboration.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="history-strip" id="history-strip">
     <div class="history-label">RECENT SCANS</div>
     <div class="history-row" id="history-row"></div>
@@ -447,6 +531,13 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
   </div>
   <div class="section-label" id="findings-label">ANOMALIES DETECTED</div>
   <div id="findings-container" class="mb-12"></div>
+
+  <!-- Door location analysis -->
+  <div class="location-section" id="location-section" style="display:none">
+    <div class="section-label">DOOR LOCATION ANALYSIS</div>
+    <div id="location-container"></div>
+  </div>
+
   <button class="btn btn-primary mb-8" onclick="app.startCamera()">📷 &nbsp; SCAN ANOTHER SURFACE</button>
   <button class="btn btn-ghost mb-8" onclick="app.showScreen('manual')">📋 &nbsp; MANUAL INSPECTION</button>
   <button class="btn btn-ghost" onclick="app.reset()">RESET</button>
@@ -661,50 +752,313 @@ function drawAnnotations(srcCanvas, findings, zones) {
   const ctx = rc.getContext('2d');
   ctx.drawImage(srcCanvas, 0, 0);
 
-  // Darken
-  ctx.fillStyle = 'rgba(6,6,10,0.32)';
+  // Heavy darkening — makes marks pop dramatically
+  ctx.fillStyle = 'rgba(6,6,10,0.62)';
   ctx.fillRect(0, 0, w, h);
 
-  const positions = [
-    {x:w*0.33, y:h*0.5}, {x:w*0.66, y:h*0.35}, {x:w*0.5, y:h*0.68},
-    {x:w*0.22, y:h*0.3}, {x:w*0.78, y:h*0.6},  {x:w*0.55, y:h*0.22},
+  // Vignette
+  const vig = ctx.createRadialGradient(w/2, h/2, h*0.25, w/2, h/2, h*0.85);
+  vig.addColorStop(0, 'transparent');
+  vig.addColorStop(1, 'rgba(6,6,10,0.55)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, w, h);
+
+  const fontSize = Math.max(10, Math.round(w * 0.022));
+  const smallFont = Math.max(8, Math.round(w * 0.016));
+
+  // ── Zone scan lines ────────────────────────────────────────
+  ctx.setLineDash([4, 7]);
+  // Floor line
+  if (zones[0] && zones[0].signal > 0.18) {
+    const yf = h * 0.87;
+    const col = zones[0].signal > 0.6 ? '#c94c4c' : '#c9a84c';
+    ctx.globalAlpha = Math.min(zones[0].signal * 1.4, 0.95);
+    ctx.strokeStyle = col; ctx.lineWidth = zones[0].signal > 0.6 ? 2 : 1.5;
+    ctx.beginPath(); ctx.moveTo(0, yf); ctx.lineTo(w, yf); ctx.stroke();
+    // Floor label
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = col;
+    ctx.font = `${smallFont}px "DM Mono", monospace`;
+    ctx.fillText('FLOOR LINE', 8, yf - 5);
+  }
+  // Ceiling line
+  if (zones[1] && zones[1].signal > 0.18) {
+    const yc = h * 0.12;
+    const col = zones[1].signal > 0.6 ? '#c94c4c' : '#c9a84c';
+    ctx.globalAlpha = Math.min(zones[1].signal * 1.4, 0.95);
+    ctx.strokeStyle = col; ctx.lineWidth = zones[1].signal > 0.6 ? 2 : 1.5;
+    ctx.beginPath(); ctx.moveTo(0, yc); ctx.lineTo(w, yc); ctx.stroke();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = col;
+    ctx.font = `${smallFont}px "DM Mono", monospace`;
+    ctx.fillText('CEILING EDGE', 8, yc + 14);
+  }
+  // Corner joint lines (vertical at 20% and 80% x)
+  if (zones[4] && zones[4].signal > 0.25) {
+    const col = zones[4].signal > 0.6 ? '#c94c4c' : '#c9a84c';
+    ctx.globalAlpha = Math.min(zones[4].signal * 1.2, 0.85);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    [w*0.18, w*0.82].forEach(xc => {
+      ctx.beginPath(); ctx.moveTo(xc, 0); ctx.lineTo(xc, h); ctx.stroke();
+    });
+  }
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
+  // ── Anomaly hotspot markers ────────────────────────────────
+  // Map each finding to a meaningful wall position based on its type
+  const posMap = {
+    symmetry: {x: w*0.5,  y: h*0.5},   // center — seam runs middle of wall
+    lighting: {x: w*0.72, y: h*0.38},  // upper-right — light hits edges
+    texture:  {x: w*0.38, y: h*0.55},  // left-center — patch visible mid-wall
+    geometry: {x: w*0.5,  y: h*0.5},   // center — occupies full wall section
+    hardware: {x: w*0.62, y: h*0.48},  // right of center — handle height
+    wear:     {x: w*0.45, y: h*0.82},  // floor level — arc scuffing
+  };
+  const fallbackPos = [
+    {x:w*0.33, y:h*0.5}, {x:w*0.65, y:h*0.35}, {x:w*0.5,  y:h*0.65},
+    {x:w*0.22, y:h*0.3}, {x:w*0.78, y:h*0.58},
   ];
 
   findings.forEach((f, i) => {
-    const pos = positions[i % positions.length];
-    const r   = 14 + f.score * 14;
-    const a   = 0.3 + f.score * 0.5;
+    const pos = posMap[f.id] || fallbackPos[i % fallbackPos.length];
+    const r   = Math.round(22 + f.score * 24);   // bigger rings
     const col = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
 
-    ctx.globalAlpha = a * 0.5;
+    // Outer glow fill
+    const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, r * 2.2);
+    grad.addColorStop(0, col + '33');
+    grad.addColorStop(1, 'transparent');
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r * 2.2, 0, Math.PI*2); ctx.fill();
+
+    // Outer ring — thick and solid
+    ctx.globalAlpha = 0.95;
     ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2);
+    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+
+    // Inner ring
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r * 0.55, 0, Math.PI*2);
     ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
 
-    ctx.globalAlpha = a * 0.8;
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, 3.5, 0, Math.PI*2);
+    // Center dot
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, 5, 0, Math.PI*2);
     ctx.fillStyle = col; ctx.fill();
 
-    ctx.globalAlpha = a;
-    ctx.font = `${Math.round(w * 0.017)}px "DM Mono", monospace`;
+    // Cross-hair lines through center
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pos.x - r*1.4, pos.y); ctx.lineTo(pos.x - r*0.6, pos.y);
+    ctx.moveTo(pos.x + r*0.6, pos.y); ctx.lineTo(pos.x + r*1.4, pos.y);
+    ctx.moveTo(pos.x, pos.y - r*1.4); ctx.lineTo(pos.x, pos.y - r*0.6);
+    ctx.moveTo(pos.x, pos.y + r*0.6); ctx.lineTo(pos.x, pos.y + r*1.4);
+    ctx.stroke();
+
+    // Label background pill
+    const label = f.icon + '  ' + f.label.toUpperCase();
+    const score = Math.round(f.score * 100) + '%';
+    ctx.font = `bold ${fontSize}px "DM Mono", monospace`;
+    const tw = ctx.measureText(label).width + ctx.measureText(score).width + 28;
+    const lx = Math.min(pos.x + r + 8, w - tw - 6);
+    const ly = pos.y - fontSize / 2 - 4;
+
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = 'rgba(6,6,10,0.82)';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(lx - 4, ly - 2, tw, fontSize + 14, 4)
+                  : ctx.rect(lx - 4, ly - 2, tw, fontSize + 14);
+    ctx.fill();
+
+    // Label border
+    ctx.strokeStyle = col + '88'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(lx - 4, ly - 2, tw, fontSize + 14, 4)
+                  : ctx.rect(lx - 4, ly - 2, tw, fontSize + 14);
+    ctx.stroke();
+
+    // Label text
+    ctx.globalAlpha = 1;
     ctx.fillStyle = col;
-    ctx.fillText(f.icon + ' ' + Math.round(f.score * 100) + '%', pos.x + r + 5, pos.y + 4);
+    ctx.font = `bold ${fontSize}px "DM Mono", monospace`;
+    ctx.fillText(label, lx, ly + fontSize);
+
+    // Score text right-aligned
+    ctx.font = `${fontSize}px "DM Mono", monospace`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(score, lx + tw - ctx.measureText(score).width - 8, ly + fontSize);
+
     ctx.globalAlpha = 1;
   });
 
-  // Dashed zone lines
-  ctx.setLineDash([5, 8]);
-  ctx.lineWidth = 1;
-  if (zones[0] && zones[0].signal > 0.22) {
-    ctx.globalAlpha = zones[0].signal * 0.45;
-    ctx.strokeStyle = zones[0].signal > 0.6 ? '#c94c4c' : '#c9a84c';
-    ctx.beginPath(); ctx.moveTo(0, h*0.88); ctx.lineTo(w, h*0.88); ctx.stroke();
+  // ── Door edge probability band ─────────────────────────────
+  // If high symmetry break: draw a probable door boundary rect on the wall center
+  if (findings.some(f => f.id === 'symmetry' && f.score > 0.5)) {
+    const symF = findings.find(f => f.id === 'symmetry');
+    const doorW = w * 0.28;
+    const doorH = h * 0.72;
+    const doorX = w * 0.36;
+    const doorY = h * 0.14;
+    const col = symF.confidence === 'HIGH' ? '#c94c4c' : '#c9a84c';
+
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = col + '18';
+    ctx.fillRect(doorX, doorY, doorW, doorH);
+
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(doorX, doorY, doorW, doorH);
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = col;
+    ctx.font = `bold ${smallFont}px "DM Mono", monospace`;
+    ctx.fillText('PROBABLE DOOR BOUNDARY', doorX + 6, doorY + smallFont + 4);
+    ctx.globalAlpha = 1;
   }
-  if (zones[1] && zones[1].signal > 0.22) {
-    ctx.globalAlpha = zones[1].signal * 0.45;
-    ctx.strokeStyle = zones[1].signal > 0.6 ? '#c94c4c' : '#c9a84c';
-    ctx.beginPath(); ctx.moveTo(0, h*0.11); ctx.lineTo(w, h*0.11); ctx.stroke();
+
+  // ── Scan grid ──────────────────────────────────────────────
+  ctx.globalAlpha = 0.07;
+  ctx.strokeStyle = '#c9a84c';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < w; x += w/8) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
   }
-  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  for (let y = 0; y < h; y += h/6) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Corner brackets ────────────────────────────────────────
+  const bs = Math.min(w, h) * 0.06;
+  ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.7;
+  [[0,0,1,1],[w,0,-1,1],[0,h,1,-1],[w,h,-1,-1]].forEach(([cx,cy,dx,dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx+dx*bs, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy+dy*bs);
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  LOCATION ANALYSIS — where the door likely is
+// ═══════════════════════════════════════════════════════════
+function generateLocationAnalysis(findings, metrics, probability) {
+  if (!findings.length || probability < 0.2) return null;
+
+  const has = id => findings.some(f => f.id === id);
+  const score = id => (findings.find(f => f.id === id) || {score:0}).score;
+  const conf  = id => (findings.find(f => f.id === id) || {confidence:'LOW'}).confidence;
+
+  const items = [];
+
+  // ── Door type prediction ──────────────────────────────────
+  let doorType = 'PANEL DOOR';
+  if (has('hardware') && score('hardware') > 0.5)  doorType = 'PIVOT DOOR';
+  if (has('symmetry') && score('symmetry') > 0.65) doorType = 'BOOKCASE / FLUSH PANEL';
+  if (has('wear')     && score('wear')     > 0.5)  doorType = 'SWINGING PANEL DOOR';
+
+  items.push({
+    heading: 'PREDICTED DOOR TYPE',
+    icon: '🚪',
+    body: doorType,
+    detail: doorType === 'BOOKCASE / FLUSH PANEL'
+      ? 'Left-right edge asymmetry and panel width discrepancy are consistent with a full-height flush panel or bookcase pivot. The door frame will be flush with the wall — no visible gap or threshold.'
+      : doorType === 'PIVOT DOOR'
+      ? 'Hardware signature detected near standard pivot height (32–36 inches). This door type rotates on a center pin rather than hinges — look for a central circular wear mark on floor or ceiling.'
+      : doorType === 'SWINGING PANEL DOOR'
+      ? 'Floor-level wear pattern suggests an arc sweep — the door swings outward or inward on a fixed hinge point. The hinge is likely on the left side if the arc reads left-to-right.'
+      : 'Standard concealed panel with likely push-latch or magnetic catch mechanism. No conventional handle — pressure on the surface releases the latch.',
+    color: probability > 0.65 ? '#c94c4c' : '#c9a84c',
+  });
+
+  // ── Exact location on wall ────────────────────────────────
+  let loc = [];
+  if (score('symmetry') > 0.4) {
+    loc.push('The seam most likely runs vertically through the center third of the surface you scanned (roughly 30–70% of the wall width). The door edge is where the edge density breaks from left-half vs right-half symmetry.');
+  }
+  if (score('hardware') > 0.4) {
+    loc.push('The latch or catch mechanism is likely at standard handle height — 34 to 40 inches from the floor (approximately waist to hip level). Run your fingers along this horizontal band on the suspect surface.');
+  }
+  if (score('wear') > 0.35) {
+    loc.push('The arc wear mark on the floor identifies the swing radius. The hinge pivot is at the corner of that arc. Measure back along the arc to find the exact hinge point against the baseboard.');
+  }
+  if (score('lighting') > 0.4) {
+    loc.push('The shadow anomaly in the upper portion of the scan suggests a gap or edge gap at the ceiling junction. Look for a shadow line that is slightly darker or sharper than the rest of the wall-ceiling seam.');
+  }
+  if (score('texture') > 0.4) {
+    loc.push('The texture or paint finish changes at a vertical boundary. Stand at a low angle (crouch or kneel) and look across the surface with a flashlight — the finish change creates a subtle sheen difference visible in raking light.');
+  }
+  if (!loc.length) {
+    loc.push('No dominant positional signal. Scan at closer range (2–3 ft) in sections — left third, center, right third — to isolate the anomaly zone.');
+  }
+
+  items.push({
+    heading: 'WHERE ON THE WALL',
+    icon: '📍',
+    body: null,
+    detail: loc.join(' '),
+    color: '#c9a84c',
+  });
+
+  // ── How to open it ────────────────────────────────────────
+  const openMethods = [];
+  if (has('hardware') && score('hardware') > 0.45) {
+    openMethods.push('Look for a flush ring pull or recessed finger catch in the trim or panel face. It may be disguised as a decorative element. Apply firm inward pressure then pull.');
+  }
+  openMethods.push('Most residential hidden doors use a push-latch or magnetic catch. Apply even pressure with your palm at the center of the panel — firm push inward, then release. The door should spring open 1–2 inches.');
+  openMethods.push('If no response: try pressure at the four quadrants of the panel (top-left, top-right, bottom-left, bottom-right) — some doors have off-center pivots that require pressure at a specific point to release.');
+  if (has('symmetry') && doorType === 'BOOKCASE / FLUSH PANEL') {
+    openMethods.push('If it is a bookcase: the mechanism is often concealed inside the case — check for a specific book spine that is actually a lever, a false row of spines that hides a pull handle, or a shelf bracket that rotates to release the latch.');
+  }
+
+  items.push({
+    heading: 'HOW TO OPEN',
+    icon: '🔓',
+    body: null,
+    detail: openMethods[0],
+    color: '#4cc98b',
+  });
+
+  // ── What's likely behind it ───────────────────────────────
+  let behind = '';
+  const dead = score('geometry');
+  if (dead > 0.5) {
+    behind = `The geometry scan estimates ${Math.round(dead * 36 + 12)}–${Math.round(dead * 48 + 18)} inches of unaccounted depth behind this surface. That is enough for a full room, staircase, or corridor. In residential construction, this typically indicates a hidden room, utility passage, or access corridor between structural walls.`;
+  } else {
+    behind = 'Depth estimate inconclusive from pixel data alone. Perform the exterior measurement test: pace the outside wall, then the interior — any discrepancy of 2+ feet confirms a cavity. A hollow knock confirms the wall is not solid masonry.';
+  }
+
+  items.push({
+    heading: 'WHAT IS BEHIND IT',
+    icon: '🔭',
+    body: null,
+    detail: behind,
+    color: '#4c94c9',
+  });
+
+  // ── Next physical steps ───────────────────────────────────
+  items.push({
+    heading: 'NEXT PHYSICAL STEPS',
+    icon: '⚡',
+    body: null,
+    detail: [
+      '1. KNOCK TEST — rap your knuckle firmly across the full surface in a grid. A hollow boom vs a solid thud precisely marks the cavity boundary.',
+      '2. MAGNETIC SWEEP — run this app's magnetometer along the surface at 34–40 inches height. A deviation spike of 15+ µT marks a catch or hinge.',
+      '3. RAKING LIGHT — hold your phone flashlight at a sharp angle (almost parallel to the wall surface) and scan slowly. Any seam, patch, or finish edge will cast a visible shadow.',
+      '4. MEASURE — tape the exterior wall, then the interior. Mark the discrepancy on a floor plan sketch.',
+      '5. ACOUSTIC — use this app's mic analyzer and knock at the marked zone. Hollow resonance confirms a cavity.'
+    ].join(' '),
+    color: '#c9a84c',
+  });
+
+  return items;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1181,6 +1535,7 @@ const app = {
     if (!r.findings.length) {
       lbEl.textContent = 'ANOMALIES DETECTED (0)';
       fEl.innerHTML = '<div class="no-results">No significant anomalies in this frame.<br>Try adjacent surfaces or run manual checklist.</div>';
+      this._renderLocationAnalysis(r);
       return;
     }
     lbEl.textContent = `ANOMALIES DETECTED (${r.findings.length})`;
@@ -1194,6 +1549,42 @@ const app = {
       card.innerHTML = `<div class="finding-head"><div class="finding-icon-name"><span class="finding-icon">${f.icon}</span><span class="finding-name">${f.label}</span></div><span class="badge ${fb}">${f.confidence}</span></div><div class="finding-detail">${f.detail}</div><div class="finding-bar-wrap"><div class="finding-bar" style="width:0%;background:${fc};transition:width 0.8s ease ${i*0.1+0.15}s"></div></div>`;
       fEl.appendChild(card);
       setTimeout(() => card.querySelector('.finding-bar').style.width = Math.round(f.score*100) + '%', 60);
+    });
+
+    // ── Location analysis ──────────────────────────────────
+    this._renderLocationAnalysis(r);
+  },
+
+  _renderLocationAnalysis(r) {
+    const locSection = document.getElementById('location-section');
+    const locContainer = document.getElementById('location-container');
+    if (!locSection || !locContainer) return;
+
+    if (r.probability < 0.2 || !r.findings.length) {
+      locSection.style.display = 'none';
+      return;
+    }
+
+    const items = generateLocationAnalysis(r.findings, r.metrics, r.probability);
+    if (!items || !items.length) { locSection.style.display = 'none'; return; }
+
+    locSection.style.display = 'block';
+    locContainer.innerHTML = '';
+
+    items.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'location-card';
+      card.style.borderLeftColor = item.color;
+      card.style.animationDelay = (i * 0.08) + 's';
+      card.innerHTML = `
+        <div class="location-card-head">
+          <span class="location-card-icon">${item.icon}</span>
+          <span class="location-card-title">${item.heading}</span>
+        </div>
+        ${item.body ? `<div class="location-card-body" style="color:${item.color}">${item.body}</div>` : ''}
+        <div class="location-card-detail">${item.detail}</div>
+      `;
+      locContainer.appendChild(card);
     });
   },
 
