@@ -5,1121 +5,1621 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>LIMINAL — Hidden Door Detector</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --gold: #c9a84c; --gold-dim: #c9a84c44; --gold-glow: #c9a84c18;
+  --red: #c94c4c; --blue: #4c94c9; --green: #4cc98b;
+  --bg: #06060a; --surface: #0a0a0f; --surface2: #0d0d14;
+  --border: #111118; --border2: #1a1a24;
+  --text: #e8d5a0; --text-dim: #aaaacc; --text-muted: #666688; --text-ghost: #333355;
+}
+html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 99px; }
+.app { max-width: 580px; margin: 0 auto; min-height: 100vh; padding-bottom: 80px; }
+.screen { display: none; animation: fadeUp 0.3s ease both; }
+.screen.active { display: block; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scanLine { 0% { top: -2px; opacity: 0; } 4% { opacity: 1; } 96% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes countUp { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+@keyframes pulseGlow { 0%,100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 18px 3px #c9a84c10; } }
 
-  :root {
-    --gold: #c9a84c;
-    --gold-dim: #c9a84c44;
-    --gold-glow: #c9a84c22;
-    --red: #c94c4c;
-    --blue: #4c94c9;
-    --green: #4cc98b;
-    --bg: #06060a;
-    --surface: #0a0a0f;
-    --surface2: #0d0d14;
-    --border: #111118;
-    --border2: #1a1a24;
-    --text: #e8d5a0;
-    --text-dim: #aaaacc;
-    --text-muted: #666688;
-    --text-ghost: #333355;
-  }
+/* Header */
+.header { padding: 26px 22px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.header-inner { display: flex; align-items: flex-end; justify-content: space-between; }
+.header-label { font-size: 7px; letter-spacing: 0.44em; color: #c9a84c33; margin-bottom: 5px; }
+.header-title { font-family: 'Cinzel', serif; font-size: 19px; font-weight: 700; color: var(--text); letter-spacing: 0.04em; }
+.header-sub { font-size: 9px; color: var(--text-ghost); letter-spacing: 0.1em; margin-top: 3px; }
+.header-scan-count { text-align: right; font-size: 8px; letter-spacing: 0.12em; color: var(--text-ghost); }
+.header-scan-num { font-size: 24px; font-family: 'Cinzel', serif; color: #c9a84c1a; display: block; line-height: 1; }
 
-  html, body {
-    background: var(--bg);
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+/* Buttons */
+.btn { display: block; width: 100%; padding: 14px; border-radius: 10px; border: none; cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.18em; transition: all 0.18s ease; text-align: center; }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: linear-gradient(135deg, #c9a84c18, #c9a84c06); border: 1px solid var(--gold-dim); color: var(--gold); }
+.btn-primary:hover { background: linear-gradient(135deg, #c9a84c26, #c9a84c0e); border-color: #c9a84c66; }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text-ghost); }
+.btn-ghost:hover { border-color: #252530; color: var(--text-muted); }
+.section-label { font-size: 8px; letter-spacing: 0.28em; color: var(--text-ghost); margin-bottom: 10px; }
 
-  ::-webkit-scrollbar { width: 3px; }
-  ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 99px; }
+/* Home */
+#screen-home { padding: 20px 20px 0; }
+.hero-card { background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%); border: 1px solid var(--gold-dim); border-radius: 16px; padding: 22px; margin-bottom: 12px; position: relative; overflow: hidden; animation: pulseGlow 4s ease infinite; }
+.hero-card::before { content: ''; position: absolute; top: -70px; right: -70px; width: 210px; height: 210px; background: radial-gradient(circle, #c9a84c07 0%, transparent 65%); pointer-events: none; }
+.hero-icon { width: 48px; height: 48px; border-radius: 11px; background: #c9a84c0e; border: 1px solid var(--gold-dim); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
+.hero-title { font-family: 'Cinzel', serif; font-size: 13px; color: var(--text); letter-spacing: 0.06em; margin-bottom: 6px; }
+.hero-desc { font-size: 10px; color: var(--text-muted); line-height: 1.8; margin-bottom: 16px; }
+.history-strip { margin-bottom: 18px; display: none; }
+.history-label { font-size: 8px; letter-spacing: 0.28em; color: var(--text-ghost); margin-bottom: 8px; }
+.history-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; }
+.history-row::-webkit-scrollbar { display: none; }
+.history-item { flex-shrink: 0; width: 68px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border2); cursor: pointer; transition: border-color 0.2s; position: relative; }
+.history-item:hover { border-color: var(--gold-dim); }
+.history-thumb { width: 100%; aspect-ratio: 4/3; display: block; object-fit: cover; }
+.history-badge { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8px; padding: 3px; background: rgba(6,6,10,0.88); }
+.tech-list { list-style: none; }
+.tech-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.tech-item:last-child { border-bottom: none; }
+.tech-icon { font-size: 14px; width: 20px; text-align: center; color: #c9a84c77; flex-shrink: 0; margin-top: 2px; }
+.tech-name { font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 2px; }
+.tech-desc { font-size: 9px; color: var(--text-ghost); line-height: 1.6; }
 
-  /* ── Layout ── */
-  .app { max-width: 580px; margin: 0 auto; min-height: 100vh; padding-bottom: 60px; }
+/* Camera */
+#screen-camera { padding: 14px 20px 0; }
+.viewport-wrap { position: relative; border-radius: 13px; overflow: hidden; background: #000; aspect-ratio: 4/3; margin-bottom: 11px; border: 1px solid #c9a84c18; }
+#camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.viewport-wrap.night-mode #camera-video { filter: brightness(1.5) contrast(1.3) saturate(0.15); }
+.scan-overlay { position: absolute; inset: 0; pointer-events: none; }
+.scan-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(201,168,76,0.032) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.032) 1px, transparent 1px); background-size: 36px 36px; }
+.scan-line { position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(201,168,76,0.12) 10%, var(--gold) 50%, rgba(201,168,76,0.12) 90%, transparent 100%); box-shadow: 0 0 10px 3px #c9a84c2a; animation: scanLine 2.8s linear infinite; display: none; }
+.scanning .scan-line { display: block; }
+.scan-corners::before, .scan-corners::after { content: ''; position: absolute; width: 18px; height: 18px; border-color: var(--gold); border-style: solid; opacity: 0.55; }
+.scan-corners::before { top: 9px; left: 9px; border-width: 2px 0 0 2px; border-radius: 2px 0 0 0; }
+.scan-corners::after { bottom: 9px; right: 9px; border-width: 0 2px 2px 0; border-radius: 0 0 2px 0; }
+.scan-corner-tr, .scan-corner-bl { position: absolute; width: 18px; height: 18px; border-color: var(--gold); border-style: solid; opacity: 0.55; }
+.scan-corner-tr { top: 9px; right: 9px; border-width: 2px 2px 0 0; border-radius: 0 2px 0 0; }
+.scan-corner-bl { bottom: 9px; left: 9px; border-width: 0 0 2px 2px; border-radius: 0 0 0 2px; }
+.scan-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 36px; height: 36px; }
+.scan-crosshair::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(201,168,76,0.25); }
+.scan-crosshair::after  { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(201,168,76,0.25); }
+.cam-hud { position: absolute; top: 9px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 11px; pointer-events: none; }
+.cam-hud-tag { font-size: 7px; letter-spacing: 0.14em; color: rgba(201,168,76,0.5); background: rgba(6,6,10,0.65); padding: 3px 7px; border-radius: 4px; }
+.cam-instruction { position: absolute; bottom: 0; left: 0; right: 0; padding: 22px 13px 13px; background: linear-gradient(0deg, rgba(6,6,10,0.94) 0%, transparent 100%); }
+.cam-instruction-title { font-size: 10px; color: var(--gold); letter-spacing: 0.14em; margin-bottom: 2px; }
+.cam-instruction-body { font-size: 9px; color: var(--text-muted); }
+.cam-controls { display: flex; gap: 7px; margin-bottom: 11px; align-items: center; }
+.cam-controls .btn-primary { flex: 1; }
+.icon-btn { width: 43px; height: 43px; flex-shrink: 0; border-radius: 9px; border: 1px solid var(--border2); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; transition: all 0.2s; }
+.icon-btn:hover { border-color: var(--gold-dim); }
+.icon-btn.active { background: var(--gold-glow); border-color: var(--gold-dim); }
+.tips-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+/* Zoom slider */
+.zoom-row { display: flex; align-items: center; gap: 10px; padding: 0 2px; }
+.zoom-label { font-size: 14px; flex-shrink: 0; }
+.zoom-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 3px; background: var(--border2); border-radius: 2px; outline: none; cursor: pointer; }
+.zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--gold); border: 2px solid var(--bg); box-shadow: 0 0 6px #c9a84c66; cursor: pointer; }
+.zoom-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--gold); border: 2px solid var(--bg); cursor: pointer; }
+.zoom-val { font-size: 10px; color: var(--gold); width: 34px; text-align: right; letter-spacing: 0.06em; flex-shrink: 0; font-family: 'Cinzel', serif; }
+/* Zoom presets */
+.zoom-presets { display: flex; gap: 6px; }
+.zoom-preset { flex: 1; padding: 7px 4px; border-radius: 7px; border: 1px solid var(--border2); background: transparent; color: var(--text-ghost); font-family: 'DM Mono', monospace; font-size: 10px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.06em; }
+.zoom-preset:hover { border-color: var(--gold-dim); color: var(--text-muted); }
+.zoom-preset.active { background: var(--gold-glow); border-color: var(--gold-dim); color: var(--gold); }
+/* Secondary controls */
+.cam-secondary { display: flex; gap: 6px; }
+.sec-btn { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--text-ghost); font-family: 'DM Mono', monospace; font-size: 8px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.08em; white-space: nowrap; }
+.sec-btn:hover { border-color: var(--gold-dim); color: var(--text-muted); }
+.sec-btn.active { background: var(--gold-glow); border-color: var(--gold-dim); color: var(--gold); }
+/* Focus ring */
+.focus-ring { position: absolute; width: 56px; height: 56px; border: 1.5px solid var(--gold); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; animation: focusPulse 0.4s ease forwards; }
+@keyframes focusPulse { 0% { opacity: 1; transform: translate(-50%,-50%) scale(1.6); } 100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); } }
+.focus-ring::before, .focus-ring::after { content: ''; position: absolute; background: var(--gold); }
+.focus-ring::before { width: 8px; height: 1px; top: 50%; left: -10px; margin-top: -0.5px; }
+.focus-ring::after  { width: 1px; height: 8px; left: 50%; top: -10px; margin-left: -0.5px; }
+/* Luma meter */
+.luma-meter { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: none; flex-direction: column; align-items: center; gap: 4px; }
+.luma-meter.visible { display: flex; }
+.luma-bar-wrap { width: 4px; height: 80px; background: rgba(6,6,10,0.6); border-radius: 2px; border: 1px solid rgba(201,168,76,0.2); overflow: hidden; display: flex; flex-direction: column-reverse; }
+.luma-bar { width: 100%; height: 0%; background: var(--gold); border-radius: 2px; transition: height 0.2s ease; }
+.luma-label { font-size: 6px; letter-spacing: 0.12em; color: rgba(201,168,76,0.5); }
+/* Flash overlay */
+.flash-overlay { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 999; transition: opacity 0.08s ease; }
+.flash-overlay.flash { opacity: 0.95; }
+/* Freeze indicator */
+.freeze-indicator { position: absolute; top: 42px; left: 50%; transform: translateX(-50%); background: rgba(201,168,76,0.15); border: 1px solid var(--gold-dim); border-radius: 99px; padding: 3px 10px; font-size: 8px; letter-spacing: 0.14em; color: var(--gold); display: none; animation: blink 1s step-end infinite; }
+.frozen .freeze-indicator { display: block; }
+/* Pinch zoom cursor */
+.viewport-wrap { touch-action: none; }
+.tip-chip { padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; display: flex; gap: 7px; align-items: flex-start; }
+.tip-chip-icon { font-size: 10px; color: #c9a84c55; flex-shrink: 0; }
+.tip-chip-text { font-size: 9px; color: var(--text-ghost); line-height: 1.5; }
 
-  /* ── Typography ── */
-  .cinzel { font-family: 'Cinzel', serif; }
-  .mono { font-family: 'DM Mono', monospace; }
+/* Processing overlay */
+#processing-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(6,6,10,0.98); backdrop-filter: blur(14px); align-items: center; justify-content: center; flex-direction: column; padding: 28px; }
+#processing-overlay.active { display: flex; }
+.proc-img-wrap { position: relative; width: 100%; max-width: 350px; margin-bottom: 22px; border-radius: 11px; overflow: hidden; border: 1px solid var(--gold-dim); }
+.proc-img { width: 100%; display: block; opacity: 0.2; }
+.proc-scan-line { position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); box-shadow: 0 0 8px 2px #c9a84c33; animation: scanLine 1.6s linear infinite; }
+.proc-scan-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(201,168,76,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.07) 1px, transparent 1px); background-size: 22px 22px; }
+.proc-header { text-align: center; margin-bottom: 16px; }
+.proc-status { font-size: 10px; letter-spacing: 0.3em; color: var(--gold); animation: blink 1s step-end infinite; }
+.proc-metric { font-size: 28px; font-family: 'Cinzel', serif; color: #c9a84c44; margin-top: 4px; animation: countUp 0.25s ease; }
+.proc-bar-wrap { width: 100%; max-width: 350px; height: 1px; background: var(--border2); border-radius: 1px; margin-bottom: 18px; overflow: hidden; }
+.proc-bar { height: 100%; background: linear-gradient(90deg, #c9a84c88, var(--gold), #e8d5a0); width: 0%; transition: width 0.38s ease; box-shadow: 0 0 8px #c9a84c66; }
+.proc-log { width: 100%; max-width: 350px; }
+.proc-log-entry { font-size: 9px; letter-spacing: 0.07em; margin-bottom: 5px; opacity: 0; animation: fadeUp 0.2s ease forwards; }
+@keyframes fadeUp2 { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.proc-log-entry.done { color: var(--text-ghost); }
+.proc-log-entry.active { color: var(--gold); }
 
-  /* ── Screens ── */
-  .screen { display: none; animation: fadeUp 0.35s ease both; }
-  .screen.active { display: block; }
+/* Results */
+#screen-results { padding: 16px 20px 0; }
+.result-canvas-wrap { position: relative; border-radius: 13px; overflow: hidden; margin-bottom: 14px; border: 1px solid var(--border2); }
+#result-canvas { width: 100%; display: block; }
+.canvas-controls { position: absolute; top: 9px; right: 9px; display: flex; gap: 5px; }
+.canvas-btn { font-size: 7px; letter-spacing: 0.1em; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(201,168,76,0.28); background: rgba(6,6,10,0.82); color: rgba(201,168,76,0.6); cursor: pointer; transition: all 0.18s; }
+.canvas-btn:hover, .canvas-btn.active { background: rgba(201,168,76,0.1); border-color: var(--gold-dim); color: var(--gold); }
+.result-badge { position: absolute; bottom: 11px; left: 11px; font-size: 8px; letter-spacing: 0.18em; padding: 4px 9px; border-radius: 99px; background: #c9a84c10; border: 1px solid var(--gold-dim); color: var(--gold); }
 
-  /* ── Animations ── */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes scanLine {
-    0%   { top: 0%; opacity: 0; }
-    5%   { opacity: 1; }
-    95%  { opacity: 1; }
-    100% { top: 100%; opacity: 0; }
-  }
-  @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
-  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
-  @keyframes growX { from { width: 0; } }
-  @keyframes spinDot { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-  @keyframes ripple {
-    0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 0.8; }
-    100% { transform: translate(-50%,-50%) scale(3);   opacity: 0; }
-  }
+/* Ring meter */
+.prob-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 13px; padding: 18px; margin-bottom: 13px; }
+.prob-layout { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; }
+.ring-wrap { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.ring-wrap svg { width: 84px; height: 84px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--border2); stroke-width: 5; }
+.ring-fg { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1.4s cubic-bezier(0.23,1,0.32,1), stroke 0.3s; }
+.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-pct { font-size: 16px; font-weight: 600; font-family: 'Cinzel', serif; line-height: 1; }
+.ring-sub { font-size: 7px; letter-spacing: 0.1em; color: var(--text-ghost); margin-top: 2px; }
+.prob-right { flex: 1; }
+.prob-label { font-size: 9px; letter-spacing: 0.12em; color: var(--text-muted); margin-bottom: 3px; }
+.prob-title { font-family: 'Cinzel', serif; font-size: 12px; color: var(--text); margin-bottom: 9px; }
+.prob-bar-wrap { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 0; }
+.prob-bar { height: 100%; border-radius: 2px; transition: width 1.4s cubic-bezier(0.23,1,0.32,1); }
+.verdict { font-size: 10px; line-height: 1.75; padding: 11px 13px; border-radius: 8px; background: var(--bg); border-left: 2px solid; }
 
-  /* ── Header ── */
-  .header {
-    padding: 32px 24px 20px;
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 10;
-    background: linear-gradient(180deg, var(--bg) 80%, transparent);
-    backdrop-filter: blur(8px);
-  }
-  .header-label {
-    font-size: 8px; letter-spacing: 0.4em;
-    color: #c9a84c44; margin-bottom: 6px;
-  }
-  .header-title {
-    font-family: 'Cinzel', serif;
-    font-size: 20px; font-weight: 700;
-    color: var(--text); letter-spacing: 0.04em;
-  }
-  .header-sub {
-    font-size: 9px; color: var(--text-ghost);
-    letter-spacing: 0.12em; margin-top: 4px;
-  }
+/* Signal grid */
+.signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 13px; }
+.signal-cell { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 11px; }
+.signal-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.signal-icon { font-size: 13px; }
+.signal-val { font-size: 15px; font-weight: 600; font-family: 'Cinzel', serif; }
+.signal-label { font-size: 8px; letter-spacing: 0.1em; color: var(--text-ghost); margin-bottom: 5px; }
+.signal-bar-wrap { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+.signal-bar { height: 100%; border-radius: 1px; }
 
-  /* ── Buttons ── */
-  .btn {
-    display: block; width: 100%;
-    padding: 14px; border-radius: 10px;
-    border: none; cursor: pointer;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px; letter-spacing: 0.18em;
-    transition: all 0.2s ease;
-    text-align: center;
-  }
-  .btn:hover { transform: translateY(-1px); }
-  .btn:active { transform: translateY(0); }
-  .btn-primary {
-    background: linear-gradient(135deg, #c9a84c1a, #c9a84c08);
-    border: 1px solid var(--gold-dim);
-    color: var(--gold);
-  }
-  .btn-primary:hover { background: linear-gradient(135deg, #c9a84c28, #c9a84c10); }
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid var(--border2);
-    color: var(--text-ghost);
-  }
-  .btn-ghost:hover { border-color: #2a2a38; color: var(--text-muted); }
-  .btn-danger {
-    background: #c94c4c0d;
-    border: 1px solid #c94c4c33;
-    color: var(--red);
-  }
+/* Zone card */
+.zone-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 15px; margin-bottom: 13px; }
+.zone-row { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.zone-row:last-child { margin-bottom: 0; }
+.zone-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.zone-label { font-size: 8px; letter-spacing: 0.1em; color: var(--text-ghost); width: 80px; flex-shrink: 0; }
+.zone-bar-wrap { flex: 1; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+.zone-bar { height: 100%; border-radius: 1px; }
+.zone-val { font-size: 9px; color: var(--text-ghost); width: 26px; text-align: right; }
 
-  /* ── Cards ── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-  .card-gold { border-color: var(--gold-dim); }
+/* Findings */
+.finding-card { background: var(--surface); border-radius: 10px; padding: 12px 13px; margin-bottom: 7px; opacity: 0; animation: slideUp 0.35s ease forwards; }
+.finding-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.finding-icon-name { display: flex; align-items: center; gap: 8px; }
+.finding-icon { font-size: 14px; }
+.finding-name { font-family: 'Cinzel', serif; font-size: 11px; color: var(--text); letter-spacing: 0.05em; }
+.badge { font-size: 7px; letter-spacing: 0.14em; padding: 2px 7px; border-radius: 99px; border: 1px solid; }
+.badge-high   { background: #c94c4c0d; border-color: #c94c4c40; color: var(--red); }
+.badge-medium { background: #c9a84c0d; border-color: var(--gold-dim); color: var(--gold); }
+.badge-low    { background: #4c94c90d; border-color: #4c94c940; color: var(--blue); }
+.finding-detail { font-size: 9px; color: var(--text-muted); line-height: 1.7; margin-bottom: 7px; }
+.finding-bar-wrap { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+.finding-bar { height: 100%; border-radius: 1px; }
 
-  /* ── Section label ── */
-  .section-label {
-    font-size: 8px; letter-spacing: 0.28em;
-    color: var(--text-ghost); margin-bottom: 10px;
-  }
+/* Manual */
+#screen-manual { padding: 16px 20px 0; }
+.manual-score-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.check-group { margin-bottom: 20px; }
+.check-group-title { font-size: 8px; letter-spacing: 0.28em; color: #c9a84c44; margin-bottom: 7px; }
+.check-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 11px; border-radius: 8px; cursor: pointer; margin-bottom: 5px; border: 1px solid var(--border); background: var(--surface); transition: all 0.18s; text-align: left; width: 100%; }
+.check-item:hover { border-color: var(--border2); }
+.check-item.checked { background: #c9a84c07; border-color: var(--gold-dim); }
+.check-box { width: 15px; height: 15px; border-radius: 3px; flex-shrink: 0; border: 1.5px solid var(--text-ghost); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--bg); margin-top: 1px; transition: all 0.18s; }
+.check-item.checked .check-box { background: var(--gold); border-color: var(--gold); }
+.check-label { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; transition: color 0.18s; }
+.check-item.checked .check-label { color: var(--gold); }
+.check-tip { font-size: 9px; color: var(--text-ghost); line-height: 1.6; }
+.mb-8 { margin-bottom: 8px; }
+.mb-10 { margin-bottom: 10px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-14 { margin-bottom: 14px; }
+.no-results { text-align: center; padding: 36px 0; font-size: 10px; color: var(--text-ghost); line-height: 2.4; }
 
-  /* ── HOME SCREEN ── */
-  #screen-home { padding: 24px; }
+/* ── Sensor panels ── */
+.sensor-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.sensor-panel { background: var(--surface); border: 1px solid var(--border2); border-radius: 11px; padding: 12px; position: relative; overflow: hidden; transition: border-color 0.3s; }
+.sensor-panel.active { border-color: var(--gold-dim); }
+.sensor-panel.alert  { border-color: #c94c4c55; }
+@keyframes sensorPulse { 0%,100%{border-color:#c94c4c33} 50%{border-color:#c94c4caa} }
+.sensor-panel.alert { animation: sensorPulse 0.7s ease infinite; }
+.sensor-panel-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; }
+.sensor-icon { font-size: 16px; }
+.sensor-status { font-size: 7px; letter-spacing: 0.14em; padding: 2px 6px; border-radius: 99px; border: 1px solid; }
+.sensor-status.idle     { color: var(--text-ghost); border-color: var(--border2); }
+.sensor-status.running  { color: var(--gold); border-color: var(--gold-dim); animation: blink 1.2s step-end infinite; }
+.sensor-status.detected { color: var(--red); border-color: #c94c4c55; }
+.sensor-status.clear    { color: #4cc98b; border-color: #4cc98b44; }
+.sensor-name { font-size: 8px; letter-spacing: 0.12em; color: var(--text-ghost); margin-bottom: 5px; }
+.sensor-readout { font-size: 18px; font-family: 'Cinzel', serif; font-weight: 600; color: var(--text); margin-bottom: 3px; min-height: 26px; }
+.sensor-detail { font-size: 8px; color: var(--text-ghost); line-height: 1.5; min-height: 22px; }
+.sensor-btn { display: block; width: 100%; margin-top: 8px; padding: 7px; font-size: 8px; letter-spacing: 0.14em; border-radius: 7px; border: 1px solid var(--border2); background: transparent; cursor: pointer; color: var(--text-ghost); font-family: 'DM Mono', monospace; transition: all 0.18s; }
+.sensor-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+.sensor-btn.stop { border-color: #c94c4c33; color: var(--red); }
+.mag-bars { display: flex; align-items: flex-end; gap: 2px; height: 28px; margin-bottom: 4px; }
+.mag-bar { flex: 1; border-radius: 2px; min-height: 3px; transition: height 0.1s ease; }
+#fft-canvas { width: 100%; height: 36px; border-radius: 4px; display: block; margin-bottom: 4px; background: #06060a; }
+.hollow-badge { font-size: 8px; letter-spacing: 0.1em; padding: 2px 8px; border-radius: 99px; background: #c94c4c10; border: 1px solid #c94c4c44; color: var(--red); display: none; text-align: center; margin-top: 3px; }
+.hollow-badge.show { display: block; }
 
-  .hero-card {
-    background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
-    border: 1px solid var(--gold-dim);
-    border-radius: 16px; padding: 24px;
-    margin-bottom: 14px; position: relative;
-    overflow: hidden;
-  }
-  .hero-card::before {
-    content: ''; position: absolute;
-    top: -60px; right: -60px;
-    width: 180px; height: 180px;
-    background: radial-gradient(circle, #c9a84c0a 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .hero-icon {
-    width: 52px; height: 52px; border-radius: 12px;
-    background: #c9a84c10; border: 1px solid var(--gold-dim);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 26px; margin-bottom: 16px;
-  }
-  .hero-title {
-    font-family: 'Cinzel', serif;
-    font-size: 15px; color: var(--text);
-    letter-spacing: 0.06em; margin-bottom: 8px;
-  }
-  .hero-desc {
-    font-size: 10px; color: var(--text-muted);
-    line-height: 1.8; margin-bottom: 20px;
-  }
-
-  .tech-list { list-style: none; }
-  .tech-item {
-    display: flex; gap: 14px; padding: 13px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .tech-item:last-child { border-bottom: none; }
-  .tech-icon { font-size: 15px; width: 24px; text-align: center; color: #c9a84c88; flex-shrink: 0; margin-top: 1px; }
-  .tech-name { font-size: 10px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 3px; }
-  .tech-desc { font-size: 9px; color: var(--text-ghost); line-height: 1.6; }
-
-  /* ── CAMERA SCREEN ── */
-  #screen-camera { padding: 20px 24px 0; }
-
-  .viewport-wrap {
-    position: relative; border-radius: 14px;
-    overflow: hidden; background: #000;
-    aspect-ratio: 4/3; margin-bottom: 14px;
-    border: 1px solid #c9a84c22;
-  }
-  #camera-video {
-    width: 100%; height: 100%;
-    object-fit: cover; display: block;
-  }
-
-  /* Scan overlay */
-  .scan-overlay {
-    position: absolute; inset: 0;
-    pointer-events: none;
-  }
-  .scan-grid {
-    position: absolute; inset: 0;
-    background-image:
-      linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
-  .scan-line {
-    position: absolute; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-    box-shadow: 0 0 12px 4px #c9a84c44;
-    animation: scanLine 2.5s linear infinite;
-    display: none;
-  }
-  .scanning .scan-line { display: block; }
-  .scan-corners::before, .scan-corners::after {
-    content: ''; position: absolute;
-    width: 22px; height: 22px;
-    border-color: var(--gold); border-style: solid;
-    opacity: 0.7;
-  }
-  .scan-corners::before { top: 12px; left: 12px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
-  .scan-corners::after  { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
-  .scan-corner-tr, .scan-corner-bl {
-    position: absolute; width: 22px; height: 22px;
-    border-color: var(--gold); border-style: solid; opacity: 0.7;
-  }
-  .scan-corner-tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
-  .scan-corner-bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
-
-  .cam-instruction {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    padding: 28px 16px 16px;
-    background: linear-gradient(0deg, rgba(6,6,10,0.96) 0%, transparent 100%);
-  }
-  .cam-instruction-title { font-size: 10px; color: var(--gold); letter-spacing: 0.14em; margin-bottom: 3px; }
-  .cam-instruction-body  { font-size: 9px; color: var(--text-muted); }
-
-  .tips-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 8px; margin-bottom: 14px;
-  }
-  .tip-chip {
-    padding: 9px 12px; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 8px;
-    display: flex; gap: 8px; align-items: flex-start;
-  }
-  .tip-chip-icon { font-size: 11px; color: #c9a84c77; flex-shrink: 0; }
-  .tip-chip-text { font-size: 9px; color: var(--text-ghost); line-height: 1.5; }
-
-  /* ── PROCESSING OVERLAY ── */
-  #processing-overlay {
-    display: none; position: fixed; inset: 0; z-index: 200;
-    background: rgba(6,6,10,0.97);
-    backdrop-filter: blur(12px);
-    align-items: center; justify-content: center;
-    flex-direction: column; padding: 32px;
-  }
-  #processing-overlay.active { display: flex; }
-
-  .proc-preview {
-    width: 100%; max-width: 380px; border-radius: 12px;
-    opacity: 0.25; margin-bottom: 28px;
-    border: 1px solid var(--gold-dim);
-  }
-  .proc-status {
-    font-size: 11px; letter-spacing: 0.3em;
-    color: var(--gold); margin-bottom: 22px;
-    animation: blink 1s step-end infinite;
-  }
-  .proc-bar-wrap {
-    width: 100%; max-width: 360px;
-    height: 2px; background: var(--border);
-    border-radius: 1px; margin-bottom: 22px; overflow: hidden;
-  }
-  .proc-bar {
-    height: 100%; background: linear-gradient(90deg, var(--gold), #e8d5a0);
-    border-radius: 1px; width: 0%;
-    transition: width 0.5s ease;
-    box-shadow: 0 0 10px #c9a84c88;
-  }
-  .proc-log { width: 100%; max-width: 360px; }
-  .proc-log-entry {
-    font-size: 10px; letter-spacing: 0.06em;
-    margin-bottom: 7px; opacity: 0;
-    animation: fadeUp 0.25s ease forwards;
-  }
-  .proc-log-entry.done { color: var(--text-ghost); }
-  .proc-log-entry.active { color: var(--gold); }
-
-  /* ── RESULTS SCREEN ── */
-  #screen-results { padding: 20px 24px 0; }
-
-  .result-img-wrap {
-    position: relative; border-radius: 14px;
-    overflow: hidden; margin-bottom: 18px;
-    border: 1px solid var(--border2);
-  }
-  #result-img { width: 100%; display: block; }
-  .result-img-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, transparent 40%, var(--bg) 100%);
-  }
-  .result-img-badge {
-    position: absolute; bottom: 14px; left: 14px;
-    font-size: 9px; letter-spacing: 0.18em;
-    padding: 5px 10px; border-radius: 99px;
-    background: #c9a84c18; border: 1px solid var(--gold-dim);
-    color: var(--gold);
-  }
-
-  /* Probability meter */
-  .prob-card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 12px; padding: 20px;
-    margin-bottom: 14px;
-  }
-  .prob-row {
-    display: flex; justify-content: space-between;
-    align-items: baseline; margin-bottom: 8px;
-  }
-  .prob-label { font-size: 9px; letter-spacing: 0.14em; color: var(--text-muted); }
-  .prob-value { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
-  .prob-bar-wrap { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
-  .prob-bar { height: 100%; border-radius: 3px; transition: width 1.4s cubic-bezier(0.23,1,0.32,1); }
-  .verdict {
-    font-size: 10px; line-height: 1.75;
-    padding: 12px 14px; border-radius: 8px;
-    background: var(--bg); border-left: 2px solid;
-  }
-
-  /* Zone bars */
-  .zone-row {
-    display: flex; align-items: center;
-    gap: 10px; margin-bottom: 9px;
-  }
-  .zone-label { font-size: 8px; letter-spacing: 0.1em; color: var(--text-ghost); width: 88px; flex-shrink: 0; }
-  .zone-bar-wrap { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .zone-bar { height: 100%; border-radius: 2px; }
-  .zone-val { font-size: 9px; color: var(--text-ghost); width: 28px; text-align: right; }
-
-  /* Finding cards */
-  .finding-card {
-    background: var(--surface);
-    border-radius: 10px; padding: 13px 15px;
-    margin-bottom: 8px; opacity: 0;
-    animation: fadeUp 0.4s ease forwards;
-  }
-  .finding-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .finding-icon-name { display: flex; align-items: center; gap: 10px; }
-  .finding-icon { font-size: 16px; }
-  .finding-name { font-family: 'Cinzel', serif; font-size: 11px; color: var(--text); letter-spacing: 0.05em; }
-  .badge {
-    font-size: 8px; letter-spacing: 0.12em;
-    padding: 3px 8px; border-radius: 99px; border: 1px solid;
-  }
-  .badge-high   { background: #c94c4c14; border-color: #c94c4c44; color: var(--red); }
-  .badge-medium { background: #c9a84c14; border-color: var(--gold-dim); color: var(--gold); }
-  .badge-low    { background: #4c94c914; border-color: #4c94c944; color: var(--blue); }
-  .finding-detail { font-size: 10px; color: var(--text-muted); line-height: 1.65; margin-bottom: 8px; }
-  .finding-bar-wrap { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
-  .finding-bar { height: 100%; border-radius: 1px; }
-
-  /* ── MANUAL SCREEN ── */
-  #screen-manual { padding: 20px 24px 0; }
-
-  .manual-score-card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 12px; padding: 18px;
-    margin-bottom: 20px;
-  }
-
-  .check-group { margin-bottom: 24px; }
-  .check-group-title {
-    font-size: 8px; letter-spacing: 0.28em;
-    color: #c9a84c55; margin-bottom: 10px;
-  }
-
-  .check-item {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: 11px 13px; border-radius: 9px;
-    cursor: pointer; margin-bottom: 6px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    transition: all 0.2s ease;
-    text-align: left; width: 100%;
-  }
-  .check-item:hover { border-color: var(--border2); }
-  .check-item.checked {
-    background: #c9a84c08;
-    border-color: var(--gold-dim);
-  }
-  .check-box {
-    width: 17px; height: 17px; border-radius: 4px; flex-shrink: 0;
-    border: 1.5px solid var(--text-ghost);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; color: var(--bg); margin-top: 1px;
-    transition: all 0.2s ease;
-  }
-  .check-item.checked .check-box {
-    background: var(--gold);
-    border-color: var(--gold);
-  }
-  .check-label { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; transition: color 0.2s; }
-  .check-item.checked .check-label { color: var(--gold); }
-  .check-tip { font-size: 9px; color: var(--text-ghost); line-height: 1.6; }
-
-  /* ── Utility ── */
-  .gap-10 { gap: 10px; }
-  .mb-8  { margin-bottom: 8px; }
-  .mb-12 { margin-bottom: 12px; }
-  .mb-14 { margin-bottom: 14px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mb-20 { margin-bottom: 20px; }
-  .mb-24 { margin-bottom: 24px; }
-
-  .no-results {
-    text-align: center; padding: 40px 0;
-    font-size: 11px; color: var(--text-ghost);
-    line-height: 2;
-  }
 </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- ═══════════════════════════════════ HEADER ═══════════════════════════════════ -->
-  <header class="header">
-    <div class="header-label">LIMINAL INTELLIGENCE SYSTEM v2.0</div>
-    <div class="header-title cinzel" id="page-title">Hidden Door Scanner</div>
-    <div class="header-sub" id="page-sub">Camera vision · Spatial analysis · Physical tells</div>
-  </header>
-
-  <!-- ═══════════════════════════════════ HOME ═══════════════════════════════════ -->
-  <div id="screen-home" class="screen active">
-
-    <!-- Camera mode card -->
-    <div class="hero-card">
-      <div class="hero-icon">📷</div>
-      <div class="hero-title">Camera Analysis Mode</div>
-      <div class="hero-desc">
-        Point your camera at a wall, bookcase, or paneled surface.
-        The system runs real pixel analysis — edge detection, seam mapping,
-        shadow gradients, and texture analysis — to identify where a hidden door could be concealed.
-      </div>
-      <button class="btn btn-primary" onclick="startCamera()">ACTIVATE CAMERA SCAN</button>
+<header class="header">
+  <div class="header-inner">
+    <div>
+      <div class="header-label">LIMINAL INTELLIGENCE SYSTEM v3.0</div>
+      <div class="header-title" id="page-title">Hidden Door Scanner</div>
+      <div class="header-sub" id="page-sub">Camera vision · Pixel analysis · Physical tells</div>
     </div>
-
-    <!-- Manual mode button -->
-    <button class="btn btn-ghost mb-24" onclick="showScreen('manual')">
-      📋 &nbsp; MANUAL INSPECTION CHECKLIST
-    </button>
-
-    <!-- Detection techniques -->
-    <div class="section-label">DETECTION SIGNATURES</div>
-    <ul class="tech-list">
-      <li class="tech-item">
-        <span class="tech-icon">⊡</span>
-        <div>
-          <div class="tech-name">SYMMETRY BREAK</div>
-          <div class="tech-desc">Panels wider than they look, trim that continues past a corner, wall sections that don't mirror their opposite</div>
-        </div>
-      </li>
-      <li class="tech-item">
-        <span class="tech-icon">◑</span>
-        <div>
-          <div class="tech-name">SHADOW ANOMALY</div>
-          <div class="tech-desc">Shadows cast at wrong angles relative to light source, unexplained dark lines at floor or ceiling edges</div>
-        </div>
-      </li>
-      <li class="tech-item">
-        <span class="tech-icon">▦</span>
-        <div>
-          <div class="tech-name">TEXTURE MISMATCH</div>
-          <div class="tech-desc">Paint finish change, grain direction break, newer drywall patch that doesn't match surrounding surface</div>
-        </div>
-      </li>
-      <li class="tech-item">
-        <span class="tech-icon">⬚</span>
-        <div>
-          <div class="tech-name">DEAD SPACE</div>
-          <div class="tech-desc">Room interior smaller than exterior footprint suggests — unaccounted square footage hidden behind walls</div>
-        </div>
-      </li>
-      <li class="tech-item">
-        <span class="tech-icon">⊕</span>
-        <div>
-          <div class="tech-name">HARDWARE TELLS</div>
-          <div class="tech-desc">Flush pulls, pivot hinges, magnetic catches, or odd fastener patterns visible in trim or paneling</div>
-        </div>
-      </li>
-      <li class="tech-item">
-        <span class="tech-icon">◎</span>
-        <div>
-          <div class="tech-name">WEAR PATTERNS</div>
-          <div class="tech-desc">Floor scuffing arc near a wall, paint worn at edge height, baseboards with different dust accumulation</div>
-        </div>
-      </li>
-    </ul>
+    <div class="header-scan-count">
+      <span class="header-scan-num" id="scan-counter">00</span>SCANS
+    </div>
   </div>
+</header>
 
-  <!-- ═══════════════════════════════════ CAMERA ═══════════════════════════════════ -->
-  <div id="screen-camera" class="screen">
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div class="hero-card">
+    <div class="hero-icon">📷</div>
+    <div class="hero-title">Camera Analysis Mode</div>
+    <div class="hero-desc">Point at a wall, bookcase, or paneled surface. Sobel edge detection, seam mapping, shadow gradient analysis, and symmetry scoring run on the captured frame.</div>
+    <button class="btn btn-primary" onclick="app.startCamera()">ACTIVATE CAMERA SCAN</button>
+  </div>
+  <button class="btn btn-ghost mb-14" onclick="app.showScreen('manual')">📋 &nbsp; MANUAL INSPECTION CHECKLIST</button>
+  <div class="history-strip" id="history-strip">
+    <div class="history-label">RECENT SCANS</div>
+    <div class="history-row" id="history-row"></div>
+  </div>
+  <div class="section-label">DETECTION SIGNATURES</div>
+  <ul class="tech-list">
+    <li class="tech-item"><span class="tech-icon">⊡</span><div><div class="tech-name">SYMMETRY BREAK</div><div class="tech-desc">Left/right edge density mismatch, panel width discrepancy, seam at non-architectural boundary</div></div></li>
+    <li class="tech-item"><span class="tech-icon">◑</span><div><div class="tech-name">SHADOW ANOMALY</div><div class="tech-desc">Light gradient inconsistent with source, shadow at wrong angle, bleed at floor junction</div></div></li>
+    <li class="tech-item"><span class="tech-icon">▦</span><div><div class="tech-name">TEXTURE MISMATCH</div><div class="tech-desc">Paint finish transition, grain direction rotation, drywall compound variance</div></div></li>
+    <li class="tech-item"><span class="tech-icon">⬚</span><div><div class="tech-name">DEAD SPACE</div><div class="tech-desc">Interior smaller than exterior footprint, unaccounted volume behind surface</div></div></li>
+    <li class="tech-item"><span class="tech-icon">⊕</span><div><div class="tech-name">HARDWARE TELL</div><div class="tech-desc">Flush pull shadow, hinge silhouette, recessed fastener pattern</div></div></li>
+    <li class="tech-item"><span class="tech-icon">◎</span><div><div class="tech-name">WEAR PATTERN</div><div class="tech-desc">Arc scuffing on floor, differential paint wear at edge height, baseboard dust line</div></div></li>
+  </ul>
+</div>
 
-    <!-- Viewport -->
-    <div class="viewport-wrap" id="viewport">
-      <video id="camera-video" autoplay playsinline muted></video>
-      <div class="scan-overlay scanning" id="scan-overlay">
-        <div class="scan-grid"></div>
-        <div class="scan-line" id="scan-line"></div>
-        <div class="scan-corners"></div>
-        <div class="scan-corner-tr"></div>
-        <div class="scan-corner-bl"></div>
-        <div class="cam-instruction" id="cam-instruction">
-          <div class="cam-instruction-title">POSITION CAMERA</div>
-          <div class="cam-instruction-body">Fill frame with the suspect wall surface. Hold steady.</div>
+<!-- CAMERA -->
+<div id="screen-camera" class="screen">
+  <!-- Viewport -->
+  <div class="viewport-wrap" id="viewport">
+    <video id="camera-video" autoplay playsinline muted></video>
+    <div class="scan-overlay scanning">
+      <div class="scan-grid"></div>
+      <div class="scan-line"></div>
+      <div class="scan-corners"></div>
+      <div class="scan-corner-tr"></div>
+      <div class="scan-corner-bl"></div>
+      <div class="scan-crosshair" id="scan-crosshair"></div>
+      <!-- Tap-to-focus ring -->
+      <div class="focus-ring" id="focus-ring"></div>
+      <!-- Freeze indicator -->
+      <div class="freeze-indicator">⏸ FROZEN</div>
+      <!-- Top HUD -->
+      <div class="cam-hud">
+        <span class="cam-hud-tag" id="cam-mode-tag">SCAN READY</span>
+        <div style="display:flex;gap:5px">
+          <span class="cam-hud-tag" id="cam-zoom-tag">1.0×</span>
+          <span class="cam-hud-tag" id="cam-res-tag">—</span>
         </div>
       </div>
+      <!-- Luma meter (right edge) -->
+      <div class="luma-meter" id="luma-meter">
+        <div class="luma-bar-wrap"><div class="luma-bar" id="luma-bar"></div></div>
+        <div class="luma-label" id="luma-label">EXP</div>
+      </div>
+      <!-- Bottom instruction -->
+      <div class="cam-instruction">
+        <div class="cam-instruction-title" id="cam-inst-title">POSITION CAMERA</div>
+        <div class="cam-instruction-body">Pinch to zoom · Tap to focus · Fill frame</div>
+      </div>
     </div>
-
-    <!-- Tips -->
-    <div class="tips-grid mb-14">
-      <div class="tip-chip"><span class="tip-chip-icon">◉</span><span class="tip-chip-text">Center wall panel in frame</span></div>
-      <div class="tip-chip"><span class="tip-chip-icon">☀</span><span class="tip-chip-text">Ensure even room lighting</span></div>
-      <div class="tip-chip"><span class="tip-chip-icon">⊡</span><span class="tip-chip-text">Include floor & ceiling edge</span></div>
-      <div class="tip-chip"><span class="tip-chip-icon">↔</span><span class="tip-chip-text">Hold 3–6 ft from surface</span></div>
-    </div>
-
-    <button class="btn btn-primary mb-8" onclick="initiateCapture()">⚡ &nbsp; SCAN THIS SURFACE</button>
-    <button class="btn btn-ghost" onclick="resetApp()">CANCEL</button>
   </div>
 
-  <!-- ═══════════════════════════════════ RESULTS ═══════════════════════════════════ -->
-  <div id="screen-results" class="screen">
+  <!-- Zoom slider -->
+  <div class="zoom-row mb-8">
+    <span class="zoom-label">🔍</span>
+    <input type="range" id="zoom-slider" class="zoom-slider" min="1" max="10" step="0.1" value="1" oninput="app.onZoomSlider(this.value)">
+    <span class="zoom-val" id="zoom-val-label">1.0×</span>
+  </div>
 
-    <!-- Captured image -->
-    <div class="result-img-wrap" id="result-img-wrap" style="display:none">
-      <canvas id="result-img"></canvas>
-      <div class="result-img-overlay"></div>
-      <div class="result-img-badge">SCAN COMPLETE</div>
+  <!-- Preset zoom buttons -->
+  <div class="zoom-presets mb-10">
+    <button class="zoom-preset active" data-z="1"   onclick="app.setZoom(1)">1×</button>
+    <button class="zoom-preset"        data-z="2"   onclick="app.setZoom(2)">2×</button>
+    <button class="zoom-preset"        data-z="3"   onclick="app.setZoom(3)">3×</button>
+    <button class="zoom-preset"        data-z="5"   onclick="app.setZoom(5)">5×</button>
+    <button class="zoom-preset"        data-z="10"  onclick="app.setZoom(10)">10×</button>
+  </div>
+
+  <!-- Main controls -->
+  <div class="cam-controls mb-8">
+    <button class="btn btn-primary" onclick="app.capture()">⚡ &nbsp; SCAN THIS SURFACE</button>
+    <button class="icon-btn" id="torch-btn"  onclick="app.toggleTorch()"     title="Flash/Torch">🔦</button>
+    <button class="icon-btn" id="night-btn"  onclick="app.toggleNightMode()" title="Night mode">🌙</button>
+    <button class="icon-btn" id="freeze-btn" onclick="app.toggleFreeze()"    title="Freeze frame">⏸</button>
+    <button class="icon-btn"                 onclick="app.reset()"            title="Cancel">✕</button>
+  </div>
+
+  <!-- Secondary controls row -->
+  <div class="cam-secondary mb-10">
+    <button class="sec-btn" id="macro-btn" onclick="app.toggleMacro()">🔬 MACRO</button>
+    <button class="sec-btn" id="grid-btn"  onclick="app.toggleGrid()"  class="active">⊞ GRID</button>
+    <button class="sec-btn" onclick="app.flipCamera()">↺ FLIP</button>
+    <button class="sec-btn" id="luma-btn"  onclick="app.toggleLuma()">📊 LUMA</button>
+  </div>
+
+  <div class="tips-grid">
+    <div class="tip-chip"><span class="tip-chip-icon">🤏</span><span class="tip-chip-text">Pinch or slider to zoom</span></div>
+    <div class="tip-chip"><span class="tip-chip-icon">👆</span><span class="tip-chip-text">Tap viewport to focus</span></div>
+    <div class="tip-chip"><span class="tip-chip-icon">🔦</span><span class="tip-chip-text">Torch for dark areas</span></div>
+    <div class="tip-chip"><span class="tip-chip-icon">⏸</span><span class="tip-chip-text">Freeze to inspect still</span></div>
+  </div>
+
+  <!-- Sensor panels: Magnetometer + Acoustic FFT -->
+  <div class="sensor-panels">
+    <div class="sensor-panel" id="mag-panel">
+      <div class="sensor-panel-head">
+        <span class="sensor-icon">🧲</span>
+        <span class="sensor-status idle" id="mag-status">IDLE</span>
+      </div>
+      <div class="sensor-name">MAGNETOMETER</div>
+      <div class="sensor-readout" id="mag-readout">—</div>
+      <div class="mag-bars" id="mag-bars">
+        <div class="mag-bar" id="mag-x" style="background:#4c94c9;height:40%"></div>
+        <div class="mag-bar" id="mag-y" style="background:#c9a84c;height:40%"></div>
+        <div class="mag-bar" id="mag-z" style="background:#c94c4c;height:40%"></div>
+      </div>
+      <div class="sensor-detail" id="mag-detail">Detects magnetic door catches and hidden hardware</div>
+      <button class="sensor-btn" id="mag-btn" onclick="sensors.magToggle()">START SCAN</button>
     </div>
+    <div class="sensor-panel" id="fft-panel">
+      <div class="sensor-panel-head">
+        <span class="sensor-icon">🎙</span>
+        <span class="sensor-status idle" id="fft-status">IDLE</span>
+      </div>
+      <div class="sensor-name">ACOUSTIC ANALYSIS</div>
+      <div class="sensor-readout" id="fft-readout">—</div>
+      <canvas id="fft-canvas"></canvas>
+      <div class="sensor-detail" id="fft-detail">Knock on wall — hollow cavity changes resonance</div>
+      <div class="hollow-badge" id="hollow-badge">⚠ HOLLOW DETECTED</div>
+      <button class="sensor-btn" id="fft-btn" onclick="sensors.fftToggle()">START MIC</button>
+    </div>
+  </div>
 
-    <!-- Probability -->
-    <div class="prob-card mb-14">
-      <div class="prob-row">
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+  <div class="result-canvas-wrap" id="result-canvas-wrap" style="display:none">
+    <canvas id="result-canvas"></canvas>
+    <div class="canvas-controls">
+      <button class="canvas-btn active" id="btn-annotate" onclick="app.toggleAnnotate()">MARKS</button>
+      <button class="canvas-btn" id="btn-edges" onclick="app.toggleEdges()">EDGES</button>
+      <button class="canvas-btn" id="btn-raw" onclick="app.toggleRaw()">RAW</button>
+    </div>
+    <div class="result-badge">SCAN COMPLETE</div>
+  </div>
+  <div class="prob-card mb-12">
+    <div class="prob-layout">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 84 84"><circle class="ring-bg" cx="42" cy="42" r="36"/><circle class="ring-fg" id="ring-fg" cx="42" cy="42" r="36" stroke-dasharray="226" stroke-dashoffset="226"/></svg>
+        <div class="ring-label"><div class="ring-pct" id="ring-pct">—</div><div class="ring-sub">PROB</div></div>
+      </div>
+      <div class="prob-right">
         <div class="prob-label">HIDDEN DOOR PROBABILITY</div>
-        <div class="prob-value" id="prob-value">—</div>
+        <div class="prob-title" id="prob-title">—</div>
+        <div class="prob-bar-wrap"><div class="prob-bar" id="prob-bar" style="width:0%"></div></div>
       </div>
-      <div class="prob-bar-wrap">
-        <div class="prob-bar" id="prob-bar" style="width:0%"></div>
-      </div>
-      <div class="verdict" id="verdict-text"></div>
     </div>
-
-    <!-- Zone map -->
-    <div class="card mb-14" style="padding:18px">
-      <div class="section-label">ZONE ANALYSIS</div>
-      <div id="zones-container"></div>
-    </div>
-
-    <!-- Findings -->
-    <div class="section-label" id="findings-label">ANOMALIES DETECTED</div>
-    <div id="findings-container"></div>
-
-    <!-- Actions -->
-    <button class="btn btn-primary mb-8" onclick="startCamera()">📷 &nbsp; SCAN ANOTHER SURFACE</button>
-    <button class="btn btn-ghost mb-8" onclick="showScreen('manual')">📋 &nbsp; MANUAL INSPECTION</button>
-    <button class="btn btn-ghost" onclick="resetApp()">RESET</button>
+    <div class="verdict" id="verdict-text"></div>
   </div>
-
-  <!-- ═══════════════════════════════════ MANUAL ═══════════════════════════════════ -->
-  <div id="screen-manual" class="screen">
-
-    <!-- Score -->
-    <div class="manual-score-card">
-      <div class="prob-row">
-        <div class="prob-label">SUSPICION INDEX</div>
-        <div class="prob-value" id="manual-score-val">0%</div>
-      </div>
-      <div class="prob-bar-wrap">
-        <div class="prob-bar" id="manual-score-bar" style="width:0%;background:var(--gold)"></div>
-      </div>
-      <div class="section-label" style="margin:0;font-size:9px;color:var(--text-ghost)">
-        Check all signs you observe — score updates in real time
-      </div>
-    </div>
-
-    <!-- Checks -->
-    <div id="manual-checks"></div>
-
-    <button class="btn btn-ghost mb-8" onclick="showScreen('home')">← BACK TO HOME</button>
-    <button class="btn btn-primary" onclick="startCamera()">📷 CAMERA SCAN</button>
+  <div class="section-label">RAW PIXEL SIGNALS</div>
+  <div class="signal-grid mb-12" id="signal-grid"></div>
+  <div class="zone-card mb-12">
+    <div class="section-label">ZONE ANALYSIS</div>
+    <div id="zones-container"></div>
   </div>
+  <div class="section-label" id="findings-label">ANOMALIES DETECTED</div>
+  <div id="findings-container" class="mb-12"></div>
+  <button class="btn btn-primary mb-8" onclick="app.startCamera()">📷 &nbsp; SCAN ANOTHER SURFACE</button>
+  <button class="btn btn-ghost mb-8" onclick="app.showScreen('manual')">📋 &nbsp; MANUAL INSPECTION</button>
+  <button class="btn btn-ghost" onclick="app.reset()">RESET</button>
+</div>
+
+<!-- MANUAL -->
+<div id="screen-manual" class="screen">
+  <div class="manual-score-card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div class="section-label" style="margin:0">SUSPICION INDEX</div>
+      <div style="font-size:20px;font-family:'Cinzel',serif;font-weight:600" id="manual-score-val">0%</div>
+    </div>
+    <div class="prob-bar-wrap" style="margin-bottom:8px"><div class="prob-bar" id="manual-score-bar" style="width:0%;background:var(--gold)"></div></div>
+    <div class="section-label" style="margin:0;color:var(--text-ghost)">Check signs you observe · Score updates live</div>
+  </div>
+  <div id="manual-checks"></div>
+  <button class="btn btn-ghost mb-8" onclick="app.showScreen('home')">← BACK</button>
+  <button class="btn btn-primary" onclick="app.startCamera()">📷 CAMERA SCAN</button>
+</div>
 
 </div><!-- .app -->
 
-<!-- ═══════════════════════════════════ PROCESSING OVERLAY ═══════════════════════════════════ -->
+<!-- PROCESSING OVERLAY -->
 <div id="processing-overlay">
-  <img id="proc-preview" class="proc-preview" style="display:none">
-  <div class="proc-status">ANALYZING SURFACE</div>
-  <div class="proc-bar-wrap">
-    <div class="proc-bar" id="proc-bar"></div>
+  <div class="proc-img-wrap" id="proc-img-wrap" style="display:none">
+    <img id="proc-img" class="proc-img">
+    <div class="proc-scan-grid"></div>
+    <div class="proc-scan-line"></div>
   </div>
+  <div class="proc-header">
+    <div class="proc-status">ANALYZING SURFACE</div>
+    <div class="proc-metric" id="proc-metric">0%</div>
+  </div>
+  <div class="proc-bar-wrap"><div class="proc-bar" id="proc-bar"></div></div>
   <div class="proc-log" id="proc-log"></div>
 </div>
 
-<!-- Hidden capture canvas -->
 <canvas id="capture-canvas" style="display:none"></canvas>
+<canvas id="edge-canvas" style="display:none"></canvas>
+<div class="flash-overlay" id="flash-overlay"></div>
 
 <script>
+'use strict';
 // ═══════════════════════════════════════════════════════════
-//  STATE
+//  CONSTANTS
 // ═══════════════════════════════════════════════════════════
-let currentStream = null;
-let capturedImageData = null;
-let manualCheckState = {};
+const SIGNATURES = [
+  {id:'symmetry', label:'Symmetry Break', icon:'⊡', weight:0.20,
+   findings:['Vertical edge inconsistent with known architectural feature','Panel width discrepancy — possible concealed frame','Baseboard terminates at anomalous point on wall face']},
+  {id:'lighting', label:'Shadow Anomaly', icon:'◑', weight:0.18,
+   findings:['Shadow gradient inconsistent with overhead light source','Light bleed at floor junction suggests clearance beneath','Overexposed vertical band — possible reflective door edge']},
+  {id:'texture',  label:'Texture Mismatch', icon:'▦', weight:0.20,
+   findings:['Paint finish transition — matte/satin boundary at seam','Grain pattern rotation suggests replacement panel','Drywall compound variance indicates patched opening']},
+  {id:'geometry', label:'Dead Space', icon:'⬚', weight:0.22,
+   findings:['Spatial ratio: 12–18% unaccounted interior volume','Hollow-zone estimate: 2–3 ft cavity probable','Wall thickness anomalous — possible double-wall construction']},
+  {id:'hardware', label:'Hardware Tell', icon:'⊕', weight:0.13,
+   findings:['Circular shadow consistent with flush pull mechanism','Hinge shadow at standard pivot height (32–36″)','Micro-gap pattern suggests recessed fastener array']},
+  {id:'wear',     label:'Wear Pattern', icon:'◎', weight:0.07,
+   findings:['Horizontal line: differential dust/paint wear','Floor arc-scuff consistent with door swing path','Paint worn at edge height — repeated contact point']},
+];
+
+const ZONES = [
+  {id:'floor',   label:'FLOOR LINE',    calc:(h,v,e,s) => clamp(h * 0.8)},
+  {id:'ceiling', label:'CEILING EDGE',  calc:(h,v,e,s) => clamp(h * 0.6)},
+  {id:'trim',    label:'TRIM ZONE',     calc:(h,v,e,s) => clamp(v * 0.7)},
+  {id:'wall',    label:'WALL CENTER',   calc:(h,v,e,s) => clamp(e * 0.6)},
+  {id:'corners', label:'CORNER JOINTS', calc:(h,v,e,s) => clamp(s * 0.9)},
+];
+
+const MANUAL_GROUPS = [
+  {title:'VISUAL INSPECTION', checks:[
+    {id:'v1', label:'Seam visible between wall panels', tip:'Thin consistent gap that paint doesn\'t bridge — especially floor-to-ceiling'},
+    {id:'v2', label:'Paint/finish changes at vertical line', tip:'Different sheen, slight color shift, or texture boundary top to bottom'},
+    {id:'v3', label:'Trim terminates unexpectedly', tip:'Chair rail, wainscoting, or crown molding stops at odd point vs corner'},
+    {id:'v4', label:'Bookcase off-center or asymmetric', tip:'Built-in doesn\'t mirror its twin, shelf shallower on one side'},
+    {id:'v5', label:'Unusual hardware in trim', tip:'Extra screws, flush ring pulls, small metal catches in wood'},
+  ]},
+  {title:'KNOCK & SOUND TEST', checks:[
+    {id:'s1', label:'Hollow sound behind wall section', tip:'Rap with knuckle — dull thud vs hollow resonance indicates cavity'},
+    {id:'s2', label:'Sound changes at vertical boundary', tip:'Knock left/right of seam — tonal shift indicates framing break'},
+    {id:'s3', label:'Floor creak pattern near wall', tip:'Weight-bearing near pivot hinge creates characteristic creak'},
+  ]},
+  {title:'MEASUREMENT & GEOMETRY', checks:[
+    {id:'m1', label:'Room smaller than exterior suggests', tip:'Pace exterior then interior — 2+ ft discrepancy = hidden space'},
+    {id:'m2', label:'Wall exceeds standard 4.5″ thickness', tip:'3.5″ stud + drywall = ~4.5″ — thicker means it hides something'},
+    {id:'m3', label:'Missing space between adjacent rooms', tip:'Rooms don\'t add to corridor width — buffer space exists'},
+    {id:'m4', label:'Closet unusually shallow', tip:'Standard depth: 24″ — significantly less = possible false back wall'},
+  ]},
+  {title:'LIGHT, AIR & MAGNETIC', checks:[
+    {id:'l1', label:'Light bleed under baseboard', tip:'Dark room, flashlight far side — gaps let light through'},
+    {id:'l2', label:'Draught or air movement at wall', tip:'Tissue near seam — any movement means a gap through structure'},
+    {id:'l3', label:'Magnet responds to flush panel area', tip:'Pass magnet at handle height — catches at latch/strike zone'},
+    {id:'l4', label:'Floor arc-shaped wear mark', tip:'Semicircle on hardwood/carpet = door swept this path repeatedly'},
+  ]},
+];
+
+const SCAN_LOG = [
+  'Initializing vision pipeline...',
+  'Running Sobel edge detection...',
+  'Mapping vertical seam candidates...',
+  'Analyzing shadow gradient vectors...',
+  'Sampling texture frequency bands...',
+  'Computing spatial dead-zone estimate...',
+  'Cross-referencing anomaly classifier...',
+  'Weighting detection signatures...',
+  'Compiling detection report...',
+];
 
 // ═══════════════════════════════════════════════════════════
-//  SCREEN MANAGEMENT
+//  UTILITIES
 // ═══════════════════════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
+const clamp = v => Math.max(0, Math.min(1, v));
+const delay = ms => new Promise(r => setTimeout(r, ms));
+const haptic = p => navigator.vibrate && navigator.vibrate(p);
+const fmtPct = v => Math.round(v * 100) + '%';
 
-  const titles = {
-    home:   ['Hidden Door Scanner', 'Camera vision · Spatial analysis · Physical tells'],
-    camera: ['Camera Scan Mode',    'Aim at wall surface · Hold steady · Tap scan'],
-    results:['Detection Report',    'AI analysis complete'],
-    manual: ['Manual Checklist',    'Physical inspection protocol — 16 checks'],
-  };
-  if (titles[id]) {
-    document.getElementById('page-title').textContent = titles[id][0];
-    document.getElementById('page-sub').textContent   = titles[id][1];
-  }
+function evidenceScore(...signals) {
+  const valid = signals.filter(Number.isFinite);
+  return valid.length ? clamp(valid.reduce((a, b) => a + b, 0) / valid.length) : 0;
+}
 
-  // Scroll to top
-  window.scrollTo(0, 0);
+function sigColor(score) {
+  return score > 0.68 ? '#c94c4c' : score > 0.48 ? '#c9a84c' : '#4c94c9';
 }
 
 // ═══════════════════════════════════════════════════════════
-//  CAMERA
-// ═══════════════════════════════════════════════════════════
-async function startCamera() {
-  try {
-    stopStream();
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width:  { ideal: 1280 },
-        height: { ideal: 960 },
-      },
-      audio: false,
-    });
-    currentStream = stream;
-    const vid = document.getElementById('camera-video');
-    vid.srcObject = stream;
-    vid.play();
-    showScreen('camera');
-  } catch (err) {
-    alert('Camera access required.\n\n' + (err.message || 'Permission denied.'));
-  }
-}
-
-function stopStream() {
-  if (currentStream) {
-    currentStream.getTracks().forEach(t => t.stop());
-    currentStream = null;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  CAPTURE & PROCESS
-// ═══════════════════════════════════════════════════════════
-function captureFrame() {
-  const vid = document.getElementById('camera-video');
-  const canvas = document.getElementById('capture-canvas');
-  const w = vid.videoWidth  || 640;
-  const h = vid.videoHeight || 480;
-  canvas.width  = w;
-  canvas.height = h;
-  canvas.getContext('2d').drawImage(vid, 0, 0);
-  return canvas;
-}
-
-async function initiateCapture() {
-  const canvas = captureFrame();
-  stopStream();
-
-  // Show preview
-  const procPrev = document.getElementById('proc-preview');
-  procPrev.src = canvas.toDataURL('image/jpeg', 0.75);
-  procPrev.style.display = 'block';
-
-  // Remember captured canvas for results screen
-  capturedImageData = canvas;
-
-  // Show overlay
-  const overlay = document.getElementById('processing-overlay');
-  overlay.classList.add('active');
-
-  // Run pixel analysis
-  const pixelMetrics = analyzePixels(canvas);
-
-  // Simulate scan pipeline
-  const LOG_STEPS = [
-    'Initializing vision pipeline...',
-    'Running Sobel edge detection...',
-    'Mapping vertical seam candidates...',
-    'Analyzing shadow gradient vectors...',
-    'Sampling texture frequency bands...',
-    'Computing spatial dead-zone estimate...',
-    'Cross-referencing anomaly classifier...',
-    'Weighting detection signatures...',
-    'Compiling detection report...',
-  ];
-
-  const logEl = document.getElementById('proc-log');
-  const barEl = document.getElementById('proc-bar');
-  logEl.innerHTML = '';
-
-  for (let i = 0; i < LOG_STEPS.length; i++) {
-    await delay(350 + Math.random() * 250);
-    const entry = document.createElement('div');
-    entry.className = 'proc-log-entry active';
-    entry.textContent = '▶ ' + LOG_STEPS[i];
-    logEl.appendChild(entry);
-    // Mark previous done
-    if (i > 0) logEl.children[i - 1].className = 'proc-log-entry done';
-    entry.textContent = (i === LOG_STEPS.length - 1 ? '▶ ' : '▶ ') + LOG_STEPS[i];
-    barEl.style.width = ((i + 1) / LOG_STEPS.length * 100) + '%';
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  await delay(500);
-
-  const results = buildResults(pixelMetrics);
-  renderResults(results);
-
-  overlay.classList.remove('active');
-  barEl.style.width = '0%';
-  logEl.innerHTML = '';
-  procPrev.style.display = 'none';
-
-  showScreen('results');
-}
-
-// ═══════════════════════════════════════════════════════════
-//  PIXEL ANALYSIS — real computer vision
+//  PIXEL ANALYSIS
 // ═══════════════════════════════════════════════════════════
 function analyzePixels(canvas) {
   const ctx  = canvas.getContext('2d');
   const w    = canvas.width;
   const h    = canvas.height;
   const data = ctx.getImageData(0, 0, w, h).data;
+  const step = 4;
+  const luma = i => data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
 
-  const step = 4; // sample stride
-  let edgeSum        = 0;
-  let verticalEdges  = 0;
-  let horizontalEdges = 0;
-  let contrastSum    = 0;
-  let brightnessSum  = 0;
-  let samples        = 0;
-
-  // Luma lookup
-  function luma(i) { return data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114; }
+  let edgeSum = 0, vertEdges = 0, horizEdges = 0, contrastSum = 0, brightSum = 0, samples = 0;
 
   for (let y = step; y < h - step; y += step) {
     for (let x = step; x < w - step; x += step) {
       const i  = (y * w + x) * 4;
-      const iU = ((y - step) * w + x) * 4;
-      const iD = ((y + step) * w + x) * 4;
-      const iL = (y * w + (x - step)) * 4;
-      const iR = (y * w + (x + step)) * 4;
-
-      const c  = luma(i);
-      const gx = Math.abs(luma(iR) - luma(iL));
-      const gy = Math.abs(luma(iD) - luma(iU));
+      const gx = Math.abs(luma((y * w + (x+step)) * 4) - luma((y * w + (x-step)) * 4));
+      const gy = Math.abs(luma(((y+step) * w + x) * 4) - luma(((y-step) * w + x) * 4));
       const mag = Math.sqrt(gx * gx + gy * gy);
+      const c   = luma(i);
 
-      edgeSum    += mag;
+      edgeSum     += mag;
       contrastSum += Math.abs(c - 128);
-      brightnessSum += c;
-
-      // Strong vertical edge (wall seam candidate)
-      if (gx > 25 && gy < gx * 0.4) verticalEdges++;
-      // Strong horizontal edge (floor/ceiling line)
-      if (gy > 25 && gx < gy * 0.4) horizontalEdges++;
-
+      brightSum   += c;
+      if (gx > 25 && gy < gx * 0.4) vertEdges++;
+      if (gy > 25 && gx < gy * 0.4) horizEdges++;
       samples++;
     }
   }
 
-  // Vertical symmetry check — compare left half vs right half edge density
-  let leftEdge = 0, rightEdge = 0, leftSamples = 0, rightSamples = 0;
+  // Horizontal symmetry break
+  let lEdge = 0, rEdge = 0, lS = 0, rS = 0;
   for (let y = step; y < h - step; y += step) {
     for (let x = step; x < w - step; x += step) {
-      const iL = (y * w + (x - step)) * 4;
-      const iR_px = (y * w + (x + step)) * 4;
-      const gx = Math.abs(luma(iR_px) - luma(iL));
-      if (x < w / 2) { leftEdge += gx; leftSamples++; }
-      else            { rightEdge += gx; rightSamples++; }
+      const gx = Math.abs(luma((y * w + (x+step)) * 4) - luma((y * w + (x-step)) * 4));
+      if (x < w / 2) { lEdge += gx; lS++; } else { rEdge += gx; rS++; }
     }
   }
-  const leftDensity  = leftSamples  > 0 ? leftEdge  / leftSamples  : 0;
-  const rightDensity = rightSamples > 0 ? rightEdge / rightSamples : 0;
-  const symmetryBreak = Math.abs(leftDensity - rightDensity) / (Math.max(leftDensity, rightDensity) + 1e-6);
+  const lD = lS ? lEdge / lS : 0;
+  const rD = rS ? rEdge / rS : 0;
+  const symBreak = Math.abs(lD - rD) / (Math.max(lD, rD) + 1e-6);
 
-  // Normalise
-  const edgeComplexity   = Math.min(edgeSum    / samples / 60, 1);
-  const verticalSeams    = Math.min(verticalEdges   / samples * 15, 1);
-  const horizontalLines  = Math.min(horizontalEdges / samples * 15, 1);
-  const contrastUniform  = 1 - Math.min(contrastSum / samples / 70, 1);
-  const avgBrightness    = brightnessSum / samples / 255;
+  return {
+    edgeComplexity:  Math.min(edgeSum    / samples / 60, 1),
+    verticalSeams:   Math.min(vertEdges  / samples * 15, 1),
+    horizontalLines: Math.min(horizEdges / samples * 15, 1),
+    contrastUniform: 1 - Math.min(contrastSum / samples / 70, 1),
+    symmetryBreak:   symBreak,
+    avgBrightness:   brightSum / samples / 255,
+  };
+}
 
-  return { edgeComplexity, verticalSeams, horizontalLines, contrastUniform, symmetryBreak, avgBrightness };
+function buildEdgeMap(src) {
+  const ec  = document.getElementById('edge-canvas');
+  const w   = src.width;
+  const h   = src.height;
+  ec.width  = w;
+  ec.height = h;
+  const sCtx = src.getContext('2d');
+  const eCtx = ec.getContext('2d');
+  const data = sCtx.getImageData(0, 0, w, h).data;
+  const out  = eCtx.createImageData(w, h);
+  const luma = i => data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const gx  = Math.abs(luma((y*w+(x+1))*4) - luma((y*w+(x-1))*4));
+      const gy  = Math.abs(luma(((y+1)*w+x)*4) - luma(((y-1)*w+x)*4));
+      const mag = Math.min(Math.sqrt(gx*gx + gy*gy), 255);
+      const i   = (y*w+x)*4;
+      out.data[i]   = Math.round(mag * 0.79);
+      out.data[i+1] = Math.round(mag * 0.66);
+      out.data[i+2] = Math.round(mag * 0.30);
+      out.data[i+3] = 255;
+    }
+  }
+  eCtx.putImageData(out, 0, 0);
+  return ec;
+}
+
+function drawAnnotations(srcCanvas, findings, zones) {
+  const rc = document.getElementById('result-canvas');
+  const w  = srcCanvas.width;
+  const h  = srcCanvas.height;
+  rc.width  = w;
+  rc.height = h;
+  const ctx = rc.getContext('2d');
+  ctx.drawImage(srcCanvas, 0, 0);
+
+  // Darken
+  ctx.fillStyle = 'rgba(6,6,10,0.32)';
+  ctx.fillRect(0, 0, w, h);
+
+  const positions = [
+    {x:w*0.33, y:h*0.5}, {x:w*0.66, y:h*0.35}, {x:w*0.5, y:h*0.68},
+    {x:w*0.22, y:h*0.3}, {x:w*0.78, y:h*0.6},  {x:w*0.55, y:h*0.22},
+  ];
+
+  findings.forEach((f, i) => {
+    const pos = positions[i % positions.length];
+    const r   = 14 + f.score * 14;
+    const a   = 0.3 + f.score * 0.5;
+    const col = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
+
+    ctx.globalAlpha = a * 0.5;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.globalAlpha = a * 0.8;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = col; ctx.fill();
+
+    ctx.globalAlpha = a;
+    ctx.font = `${Math.round(w * 0.017)}px "DM Mono", monospace`;
+    ctx.fillStyle = col;
+    ctx.fillText(f.icon + ' ' + Math.round(f.score * 100) + '%', pos.x + r + 5, pos.y + 4);
+    ctx.globalAlpha = 1;
+  });
+
+  // Dashed zone lines
+  ctx.setLineDash([5, 8]);
+  ctx.lineWidth = 1;
+  if (zones[0] && zones[0].signal > 0.22) {
+    ctx.globalAlpha = zones[0].signal * 0.45;
+    ctx.strokeStyle = zones[0].signal > 0.6 ? '#c94c4c' : '#c9a84c';
+    ctx.beginPath(); ctx.moveTo(0, h*0.88); ctx.lineTo(w, h*0.88); ctx.stroke();
+  }
+  if (zones[1] && zones[1].signal > 0.22) {
+    ctx.globalAlpha = zones[1].signal * 0.45;
+    ctx.strokeStyle = zones[1].signal > 0.6 ? '#c94c4c' : '#c9a84c';
+    ctx.beginPath(); ctx.moveTo(0, h*0.11); ctx.lineTo(w, h*0.11); ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
 }
 
 // ═══════════════════════════════════════════════════════════
-//  BUILD DETECTION RESULTS
+//  SCORING ENGINE
 // ═══════════════════════════════════════════════════════════
-function buildResults(m) {
-  const { edgeComplexity, verticalSeams, horizontalLines, contrastUniform, symmetryBreak, avgBrightness } = m;
+function buildResults(metrics) {
+  const {edgeComplexity:e, verticalSeams:v, horizontalLines:h, contrastUniform:c, symmetryBreak:s} = metrics;
 
-  // Score each signature using real pixel signals
   const sigScores = {
-    symmetry: clamp(symmetryBreak * 1.4 + verticalSeams * 0.5 + rndOffset(0.12)),
-    lighting:  clamp(edgeComplexity * 0.5 + (1 - contrastUniform) * 0.4 + rndOffset(0.15)),
-    texture:   clamp(edgeComplexity * 0.7 + verticalSeams * 0.3 + rndOffset(0.12)),
-    geometry:  clamp(symmetryBreak * 0.3 + rndOffset(0.35)),   // needs real measurement context
-    hardware:  clamp(verticalSeams * 0.6 + edgeComplexity * 0.3 + rndOffset(0.18)),
-    wear:      clamp(horizontalLines * 0.7 + rndOffset(0.2)),
+    symmetry: evidenceScore(s, v),
+    lighting: evidenceScore(e, 1 - c),
+    texture:  evidenceScore(e, v),
+    geometry: evidenceScore(s),
+    hardware: evidenceScore(v, e),
+    wear:     evidenceScore(h),
   };
 
-  const SIGS = [
-    { id:'symmetry', label:'Symmetry Break',   icon:'⊡', weight:0.20,
-      findings:[
-        'Vertical edge detected inconsistent with known architectural feature',
-        'Panel width discrepancy in scan zone — possible concealed frame element',
-        'Baseboard or trim terminates at anomalous point on wall face',
-      ]},
-    { id:'lighting',  label:'Shadow Anomaly',   icon:'◑', weight:0.18,
-      findings:[
-        'Shadow gradient inconsistent with single overhead light source',
-        'Light bleed signature at floor junction suggests clearance beneath',
-        'Overexposed vertical band may indicate reflective door-edge material',
-      ]},
-    { id:'texture',   label:'Texture Mismatch', icon:'▦', weight:0.20,
-      findings:[
-        'Paint finish transition detected — matte/satin boundary at vertical seam',
-        'Grain pattern rotation mid-surface suggests replacement panel or addition',
-        'Drywall compound texture variance indicates patched or modified opening',
-      ]},
-    { id:'geometry',  label:'Dead Space',        icon:'⬚', weight:0.22,
-      findings:[
-        'Spatial ratio suggests 12–18% unaccounted interior volume behind surface',
-        'Hollow-zone estimate: 2–3 ft cavity probable behind scan target',
-        'Wall thickness reads anomalous — possible double-wall construction',
-      ]},
-    { id:'hardware',  label:'Hardware Tell',     icon:'⊕', weight:0.13,
-      findings:[
-        'Circular shadow consistent with flush pull or magnetic catch mechanism',
-        'Hinge shadow detected at standard door-pivot height (32–36″)',
-        'Micro-gap at regular intervals suggests recessed fastener or latch pattern',
-      ]},
-    { id:'wear',      label:'Wear Pattern',      icon:'◎', weight:0.07,
-      findings:[
-        'Horizontal line at baseboard shows differential dust/paint wear pattern',
-        'Floor surface shows arc-shaped scuffing consistent with door swing path',
-        'Paint worn at edge height — repeated contact point suggests moving panel',
-      ]},
-  ];
-
   const findings = [];
-  let overallNumerator = 0;
-  let overallDenominator = 0;
+  let totalWeight = 0, weightedSum = 0;
 
-  SIGS.forEach(sig => {
+  SIGNATURES.forEach(sig => {
     const score = sigScores[sig.id];
-    overallNumerator   += score * sig.weight;
-    overallDenominator += sig.weight;
-
+    weightedSum += score * sig.weight;
+    totalWeight += sig.weight;
     if (score > 0.32) {
       const idx = Math.min(Math.floor(score * sig.findings.length), sig.findings.length - 1);
       findings.push({
-        id:         sig.id,
-        label:      sig.label,
-        icon:       sig.icon,
-        score:      score,
+        id: sig.id, label: sig.label, icon: sig.icon, score,
         confidence: score > 0.68 ? 'HIGH' : score > 0.48 ? 'MEDIUM' : 'LOW',
-        detail:     sig.findings[idx],
+        detail: sig.findings[idx],
       });
     }
   });
 
   findings.sort((a, b) => b.score - a.score);
-  const probability = clamp(overallNumerator / overallDenominator);
+  const probability = clamp(weightedSum / totalWeight);
+  const zones = ZONES.map(z => ({...z, signal: z.calc(h, v, e, s)}));
 
-  const ZONES = [
-    { id:'floor',      label:'FLOOR LINE',     signalFn: () => clamp(horizontalLines * 0.8 + rndOffset(0.2)) },
-    { id:'ceiling',    label:'CEILING EDGE',   signalFn: () => clamp(horizontalLines * 0.6 + rndOffset(0.25)) },
-    { id:'trim',       label:'TRIM ZONE',      signalFn: () => clamp(verticalSeams * 0.7 + rndOffset(0.22)) },
-    { id:'wall_center',label:'WALL CENTER',    signalFn: () => clamp(edgeComplexity * 0.6 + rndOffset(0.28)) },
-    { id:'corners',    label:'CORNER JOINTS',  signalFn: () => clamp(symmetryBreak * 0.9 + rndOffset(0.2)) },
-  ];
-  const zones = ZONES.map(z => ({ ...z, signal: z.signalFn() }));
-
-  return { probability, findings, zones };
+  return {probability, findings, zones, metrics};
 }
 
-function clamp(v) { return Math.max(0, Math.min(1, v)); }
-function rndOffset(magnitude) { return (Math.random() - 0.5) * magnitude; }
-
 // ═══════════════════════════════════════════════════════════
-//  RENDER RESULTS
+//  APP
 // ═══════════════════════════════════════════════════════════
-function renderResults(r) {
-  const pct  = Math.round(r.probability * 100);
-  const color = r.probability > 0.65 ? '#c94c4c' : r.probability > 0.45 ? '#c9a84c' : r.probability > 0.28 ? '#4c94c9' : '#4c94c9';
+const app = {
+  stream:         null,
+  capturedCanvas: null,
+  nightMode:      false,
+  torchOn:        false,
+  frozen:         false,
+  lumaVisible:    false,
+  gridOn:         true,
+  viewMode:       'annotate',
+  manualChecks:   {},
+  scanCount:      0,
+  history:        [],
+  lastResults:    null,
+  zoomLevel:      1,
+  zoomMin:        1,
+  zoomMax:        10,
+  imageCapture:   null,
+  pinchStartDist: null,
+  pinchStartZoom: 1,
+  lumaRaf:        null,
+  facingMode:     'environment',
 
-  // Captured image
-  if (capturedImageData) {
-    const wrap   = document.getElementById('result-img-wrap');
-    const target = document.getElementById('result-img');
-    target.width  = capturedImageData.width;
-    target.height = capturedImageData.height;
-    target.getContext('2d').drawImage(capturedImageData, 0, 0);
-    wrap.style.display = 'block';
-  }
+  showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    const titles = {
+      home:    ['Hidden Door Scanner',  'Camera vision · Pixel analysis · Physical tells'],
+      camera:  ['Camera Scan Mode',     'Pinch zoom · Tap focus · Torch · Freeze'],
+      results: ['Detection Report',     'Pixel analysis complete'],
+      manual:  ['Manual Checklist',     'Physical inspection protocol'],
+    };
+    if (titles[id]) {
+      document.getElementById('page-title').textContent = titles[id][0];
+      document.getElementById('page-sub').textContent   = titles[id][1];
+    }
+    window.scrollTo(0, 0);
+  },
 
-  // Probability
-  document.getElementById('prob-value').textContent = pct + '%';
-  document.getElementById('prob-value').style.color = color;
-  setTimeout(() => {
-    const bar = document.getElementById('prob-bar');
-    bar.style.width = pct + '%';
-    bar.style.background = color;
-    bar.style.boxShadow  = `0 0 10px ${color}88`;
-  }, 50);
+  async startCamera() {
+    try {
+      this.stopStream();
+      this.frozen = false;
+      this.zoomLevel = 1;
+      this._updateZoomUI(1);
+      document.getElementById('viewport').classList.remove('frozen');
 
-  // Verdict
-  let verdict, borderColor;
-  if (r.probability > 0.65) {
-    verdict = '⚠ HIGH PROBABILITY — Multiple strong anomalies detected. Physical inspection strongly recommended. Perform knock test and take room measurements to confirm.';
-    borderColor = '#c94c4c';
-  } else if (r.probability > 0.45) {
-    verdict = '◈ MODERATE SIGNAL — Anomalies present but inconclusive. Scan adjacent surfaces under different lighting. Check room dimensions against exterior.';
-    borderColor = '#c9a84c';
-  } else if (r.probability > 0.28) {
-    verdict = '◇ WEAK SIGNAL — Minor irregularity detected. Expand scan area and try the manual checklist to corroborate.';
-    borderColor = '#4c94c9';
-  } else {
-    verdict = '○ NO SIGNIFICANT ANOMALIES — Surface appears uniform. Try scanning adjacent walls, bookcases, or paneled areas.';
-    borderColor = '#2a2a44';
-  }
-  const verdictEl = document.getElementById('verdict-text');
-  verdictEl.textContent = verdict;
-  verdictEl.style.color       = color;
-  verdictEl.style.borderColor = borderColor;
-  verdictEl.style.background  = color + '08';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {facingMode: {ideal: this.facingMode}, width: {ideal: 1920}, height: {ideal: 1080}},
+        audio: false,
+      });
+      this.stream = stream;
+      const vid = document.getElementById('camera-video');
+      vid.srcObject = stream;
+      await vid.play();
 
-  // Zones
-  const zonesEl = document.getElementById('zones-container');
-  zonesEl.innerHTML = '';
-  r.zones.forEach(z => {
-    const sig = z.signal;
-    const zColor = sig > 0.6 ? '#c94c4c' : sig > 0.4 ? '#c9a84c' : '#4c94c9';
-    zonesEl.innerHTML += `
-      <div class="zone-row">
-        <div class="zone-label">${z.label}</div>
-        <div class="zone-bar-wrap">
-          <div class="zone-bar" style="width:${Math.round(sig*100)}%;background:${zColor};transition:width 1s ease ${Math.random()*0.3}s"></div>
-        </div>
-        <div class="zone-val">${Math.round(sig*100)}</div>
-      </div>`;
-  });
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.zoom) {
+          this.zoomMin = caps.zoom.min || 1;
+          this.zoomMax = caps.zoom.max || 10;
+          const sl = document.getElementById('zoom-slider');
+          sl.min = this.zoomMin; sl.max = this.zoomMax;
+          sl.step = (this.zoomMax - this.zoomMin) / 100;
+        }
+        if (window.ImageCapture) this.imageCapture = new ImageCapture(track);
+      }
 
-  // Findings
-  const findingsEl = document.getElementById('findings-container');
-  const labelEl    = document.getElementById('findings-label');
+      vid.addEventListener('loadedmetadata', () => {
+        document.getElementById('cam-res-tag').textContent = vid.videoWidth + '×' + vid.videoHeight;
+      }, {once: true});
 
-  if (r.findings.length === 0) {
-    labelEl.textContent = 'ANOMALIES DETECTED (0)';
-    findingsEl.innerHTML = '<div class="no-results">No significant anomalies found in this frame.<br>Try scanning adjacent surfaces or try manual checklist.</div>';
-    return;
-  }
+      const vp = document.getElementById('viewport');
+      vp.onclick = e => this._tapFocus(e);
+      vp.addEventListener('touchstart', e => this._pinchStart(e), {passive: true});
+      vp.addEventListener('touchmove',  e => this._pinchMove(e),  {passive: false});
+      vp.addEventListener('touchend',   e => this._pinchEnd(e),   {passive: true});
 
-  labelEl.textContent = `ANOMALIES DETECTED (${r.findings.length})`;
-  findingsEl.innerHTML = '';
+      this.showScreen('camera');
+      this._startLuma();
+      haptic(10);
+    } catch (err) {
+      alert('Camera access required.\n\n' + (err.message || 'Permission denied.'));
+    }
+  },
 
-  r.findings.forEach((f, i) => {
-    const fColor = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
-    const fBadge = f.confidence === 'HIGH' ? 'badge-high' : f.confidence === 'MEDIUM' ? 'badge-medium' : 'badge-low';
-    const card = document.createElement('div');
-    card.className = 'finding-card';
-    card.style.border = `1px solid ${fColor}22`;
-    card.style.animationDelay = (i * 0.08) + 's';
-    card.innerHTML = `
-      <div class="finding-head">
-        <div class="finding-icon-name">
-          <span class="finding-icon">${f.icon}</span>
-          <span class="finding-name">${f.label}</span>
-        </div>
-        <span class="badge ${fBadge}">${f.confidence}</span>
-      </div>
-      <div class="finding-detail">${f.detail}</div>
-      <div class="finding-bar-wrap">
-        <div class="finding-bar" style="width:0%;background:${fColor};transition:width 1s ease ${i * 0.1 + 0.3}s"></div>
-      </div>`;
-    findingsEl.appendChild(card);
-    // Animate bar
-    setTimeout(() => card.querySelector('.finding-bar').style.width = Math.round(f.score * 100) + '%', 50);
-  });
-}
+  stopStream() {
+    this._stopLuma();
+    if (this.stream) {
+      this._setTorch(false).catch(()=>{});
+      this.stream.getTracks().forEach(t => t.stop());
+      this.stream = null;
+    }
+    this.imageCapture = null;
+    this.torchOn = false;
+  },
+
+  // ── Zoom ──────────────────────────────────────────────────
+  async setZoom(level) {
+    level = Math.max(this.zoomMin, Math.min(this.zoomMax, level));
+    this.zoomLevel = level;
+    this._updateZoomUI(level);
+    const track = this.stream?.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({advanced: [{zoom: level}]});
+    } catch {
+      const vid = document.getElementById('camera-video');
+      const s   = level / this.zoomMin;
+      vid.style.transform = s > 1 ? `scale(${Math.min(s, 5)})` : '';
+    }
+  },
+
+  onZoomSlider(val) { this.setZoom(parseFloat(val)); },
+
+  _updateZoomUI(level) {
+    const fmt = level.toFixed(1) + '×';
+    const lbl = document.getElementById('zoom-val-label');
+    const tag = document.getElementById('cam-zoom-tag');
+    const sl  = document.getElementById('zoom-slider');
+    if (lbl) lbl.textContent = fmt;
+    if (tag) tag.textContent = fmt;
+    if (sl)  sl.value = level;
+    document.querySelectorAll('.zoom-preset').forEach(btn => {
+      btn.classList.toggle('active', parseFloat(btn.dataset.z) === Math.round(level));
+    });
+  },
+
+  // ── Pinch ─────────────────────────────────────────────────
+  _pinchDist(t) {
+    const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  },
+  _pinchStart(e) { if (e.touches.length === 2) { this.pinchStartDist = this._pinchDist(e.touches); this.pinchStartZoom = this.zoomLevel; } },
+  _pinchMove(e)  { if (e.touches.length === 2 && this.pinchStartDist) { e.preventDefault(); this.setZoom(this.pinchStartZoom * this._pinchDist(e.touches) / this.pinchStartDist); } },
+  _pinchEnd(e)   { if (e.touches.length < 2) this.pinchStartDist = null; },
+
+  // ── Tap focus ─────────────────────────────────────────────
+  async _tapFocus(e) {
+    if (this.frozen) return;
+    const vp = document.getElementById('viewport');
+    const r  = vp.getBoundingClientRect();
+    const x  = (e.clientX - r.left) / r.width;
+    const y  = (e.clientY - r.top)  / r.height;
+    const ring = document.getElementById('focus-ring');
+    ring.style.left = (x * 100) + '%'; ring.style.top = (y * 100) + '%';
+    ring.style.display = 'block'; ring.style.animation = 'none';
+    void ring.offsetWidth; ring.style.animation = 'focusPulse 0.4s ease forwards';
+    setTimeout(() => { ring.style.display = 'none'; }, 900);
+    haptic(6);
+    const track = this.stream?.getVideoTracks()[0];
+    if (track?.getCapabilities) {
+      const caps = track.getCapabilities();
+      if (caps.focusMode?.includes('manual')) {
+        try { await track.applyConstraints({advanced: [{focusMode: 'manual', pointsOfInterest: [{x, y}]}]}); } catch {}
+      }
+    }
+    const inst = document.getElementById('cam-inst-title');
+    if (inst) { inst.textContent = 'FOCUSED'; setTimeout(() => { inst.textContent = 'POSITION CAMERA'; }, 1200); }
+  },
+
+  // ── Torch ─────────────────────────────────────────────────
+  async toggleTorch() { await this._setTorch(!this.torchOn); },
+
+  async _setTorch(on) {
+    const track = this.stream?.getVideoTracks()[0];
+    if (!track) { if (on) this._simulateFlash(); return; }
+    try {
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps.torch) {
+        await track.applyConstraints({advanced: [{torch: on}]});
+        this.torchOn = on;
+        document.getElementById('torch-btn')?.classList.toggle('active', on);
+        document.getElementById('cam-mode-tag').textContent = on ? 'TORCH ON' : 'SCAN READY';
+        haptic(on ? [10, 20] : 15);
+      } else if (on) {
+        this._simulateFlash();
+      }
+    } catch { if (on) this._simulateFlash(); }
+  },
+
+  _simulateFlash() {
+    const fl = document.getElementById('flash-overlay');
+    fl.style.opacity = '0.9'; setTimeout(() => { fl.style.opacity = '0'; }, 130);
+    haptic([10, 10]);
+  },
+
+  // ── Night mode ────────────────────────────────────────────
+  toggleNightMode() {
+    this.nightMode = !this.nightMode;
+    document.getElementById('viewport').classList.toggle('night-mode', this.nightMode);
+    document.getElementById('night-btn').classList.toggle('active', this.nightMode);
+    document.getElementById('cam-mode-tag').textContent = this.nightMode ? 'NIGHT MODE' : (this.torchOn ? 'TORCH ON' : 'SCAN READY');
+    haptic(8);
+  },
+
+  // ── Freeze ────────────────────────────────────────────────
+  toggleFreeze() {
+    this.frozen = !this.frozen;
+    const vid = document.getElementById('camera-video');
+    const vp  = document.getElementById('viewport');
+    const btn = document.getElementById('freeze-btn');
+    if (this.frozen) { vid.pause(); btn.classList.add('active'); vp.classList.add('frozen'); document.getElementById('cam-mode-tag').textContent = 'FROZEN'; }
+    else { vid.play(); btn.classList.remove('active'); vp.classList.remove('frozen'); document.getElementById('cam-mode-tag').textContent = 'SCAN READY'; }
+    haptic(this.frozen ? [10, 30] : 10);
+  },
+
+  // ── Macro ─────────────────────────────────────────────────
+  async toggleMacro() {
+    const btn = document.getElementById('macro-btn');
+    btn.classList.toggle('active');
+    const on = btn.classList.contains('active');
+    if (on) { await this.setZoom(Math.min(5, this.zoomMax)); }
+    document.getElementById('cam-mode-tag').textContent = on ? 'MACRO MODE' : 'SCAN READY';
+    haptic(8);
+  },
+
+  // ── Grid ──────────────────────────────────────────────────
+  toggleGrid() {
+    this.gridOn = !this.gridOn;
+    document.getElementById('grid-btn').classList.toggle('active', this.gridOn);
+    document.querySelector('.scan-grid').style.opacity = this.gridOn ? '1' : '0';
+  },
+
+  // ── Flip ──────────────────────────────────────────────────
+  async flipCamera() {
+    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+    await this.startCamera();
+  },
+
+  // ── Luma meter ────────────────────────────────────────────
+  toggleLuma() {
+    this.lumaVisible = !this.lumaVisible;
+    document.getElementById('luma-meter').classList.toggle('visible', this.lumaVisible);
+    document.getElementById('luma-btn').classList.toggle('active', this.lumaVisible);
+  },
+
+  _startLuma() {
+    const vid = document.getElementById('camera-video');
+    const bar = document.getElementById('luma-bar');
+    const sc  = document.getElementById('capture-canvas');
+    const ctx = sc.getContext('2d');
+    const tick = () => {
+      if (this.stream && this.lumaVisible && vid.readyState >= 2) {
+        const w = 80, h = 60;
+        sc.width = w; sc.height = h;
+        ctx.drawImage(vid, 0, 0, w, h);
+        const d = ctx.getImageData(0, 0, w, h).data;
+        let lum = 0;
+        for (let i = 0; i < d.length; i += 4) lum += d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+        const avg = lum / (d.length / 4) / 255;
+        bar.style.height = Math.round(avg * 100) + '%';
+        bar.style.background = avg < 0.15 || avg > 0.85 ? '#c94c4c' : '#c9a84c';
+      }
+      this.lumaRaf = requestAnimationFrame(tick);
+    };
+    this.lumaRaf = requestAnimationFrame(tick);
+  },
+
+  _stopLuma() {
+    if (this.lumaRaf) { cancelAnimationFrame(this.lumaRaf); this.lumaRaf = null; }
+  },
+
+  // ── Capture ───────────────────────────────────────────────
+  captureFrame() {
+    const vid = document.getElementById('camera-video');
+    const c   = document.getElementById('capture-canvas');
+    c.width   = vid.videoWidth  || 640;
+    c.height  = vid.videoHeight || 480;
+    c.getContext('2d').drawImage(vid, 0, 0);
+    return c;
+  },
+
+  async capture() {
+    haptic([8, 20, 8]);
+    const fl = document.getElementById('flash-overlay');
+    fl.style.opacity = '0.35'; setTimeout(() => { fl.style.opacity = '0'; }, 90);
+
+    const canvas = this.captureFrame();
+    this._stopLuma();
+    await this._setTorch(false);
+    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+    this.capturedCanvas = canvas;
+
+    const overlay = document.getElementById('processing-overlay');
+    const imgWrap = document.getElementById('proc-img-wrap');
+    const procImg = document.getElementById('proc-img');
+    const metric  = document.getElementById('proc-metric');
+    const logEl   = document.getElementById('proc-log');
+    const barEl   = document.getElementById('proc-bar');
+
+    procImg.src = canvas.toDataURL('image/jpeg', 0.7);
+    imgWrap.style.display = 'block';
+    overlay.classList.add('active');
+    logEl.innerHTML = ''; barEl.style.width = '0%';
+
+    const metrics = analyzePixels(canvas);
+
+    for (let i = 0; i < SCAN_LOG.length; i++) {
+      await delay(300 + Math.random() * 200);
+      const pct = Math.round((i + 1) / SCAN_LOG.length * 100);
+      metric.textContent = pct + '%';
+      metric.style.animation = 'none'; void metric.offsetWidth;
+      metric.style.animation = 'countUp 0.25s ease';
+      const e = document.createElement('div');
+      e.className = 'proc-log-entry active';
+      e.textContent = '▶ ' + SCAN_LOG[i];
+      logEl.appendChild(e);
+      if (i > 0) logEl.children[i-1].className = 'proc-log-entry done';
+      barEl.style.width = pct + '%';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    await delay(350);
+    const results = buildResults(metrics);
+    this.lastResults = results;
+    this.renderResults(results);
+
+    this.scanCount++;
+    document.getElementById('scan-counter').textContent = String(this.scanCount).padStart(2, '0');
+
+    const thumb = canvas.toDataURL('image/jpeg', 0.35);
+    const pct   = Math.round(results.probability * 100);
+    const col   = results.probability > 0.65 ? '#c94c4c' : results.probability > 0.45 ? '#c9a84c' : '#4c94c9';
+    this.history.unshift({thumb, pct, col});
+    if (this.history.length > 5) this.history.pop();
+    this.renderHistory();
+
+    overlay.classList.remove('active');
+    barEl.style.width = '0%'; logEl.innerHTML = ''; imgWrap.style.display = 'none';
+    this.viewMode = 'annotate'; this.frozen = false;
+    this.showScreen('results');
+    haptic([15, 50, 15]);
+  },
+
+  setViewMode(mode) {
+    this.viewMode = mode;
+    ['annotate','edges','raw'].forEach(m => document.getElementById('btn-' + m).classList.toggle('active', m === mode));
+    if (!this.capturedCanvas || !this.lastResults) return;
+    const rc = document.getElementById('result-canvas');
+    if (mode === 'annotate') { drawAnnotations(this.capturedCanvas, this.lastResults.findings, this.lastResults.zones); }
+    else if (mode === 'edges') { const ec = buildEdgeMap(this.capturedCanvas); rc.width = ec.width; rc.height = ec.height; rc.getContext('2d').drawImage(ec, 0, 0); }
+    else { rc.width = this.capturedCanvas.width; rc.height = this.capturedCanvas.height; rc.getContext('2d').drawImage(this.capturedCanvas, 0, 0); }
+  },
+  toggleAnnotate() { this.setViewMode(this.viewMode === 'annotate' ? 'raw' : 'annotate'); },
+  toggleEdges()    { this.setViewMode(this.viewMode === 'edges' ? 'raw' : 'edges'); },
+  toggleRaw()      { this.setViewMode(this.viewMode === 'raw' ? 'annotate' : 'raw'); },
+
+  renderResults(r) {
+    const pct   = Math.round(r.probability * 100);
+    const color = r.probability > 0.65 ? '#c94c4c' : r.probability > 0.45 ? '#c9a84c' : '#4c94c9';
+
+    // Annotated canvas
+    if (this.capturedCanvas) {
+      drawAnnotations(this.capturedCanvas, r.findings, r.zones);
+      document.getElementById('result-canvas-wrap').style.display = 'block';
+      document.getElementById('btn-annotate').classList.add('active');
+      document.getElementById('btn-edges').classList.remove('active');
+      document.getElementById('btn-raw').classList.remove('active');
+    }
+
+    // Ring
+    const circ = 226;
+    setTimeout(() => {
+      const ring = document.getElementById('ring-fg');
+      ring.style.strokeDashoffset = circ - (pct / 100) * circ;
+      ring.style.stroke = color;
+    }, 80);
+    document.getElementById('ring-pct').textContent = pct + '%';
+    document.getElementById('ring-pct').style.color = color;
+
+    // Title + bar
+    const titleMap = {high:'HIGH PROBABILITY', medium:'MODERATE SIGNAL', low:'WEAK SIGNAL', none:'NO ANOMALIES'};
+    const tier = r.probability > 0.65 ? 'high' : r.probability > 0.45 ? 'medium' : r.probability > 0.28 ? 'low' : 'none';
+    document.getElementById('prob-title').textContent = titleMap[tier];
+    document.getElementById('prob-title').style.color = color;
+    setTimeout(() => {
+      const bar = document.getElementById('prob-bar');
+      bar.style.width = pct + '%'; bar.style.background = color; bar.style.boxShadow = `0 0 8px ${color}77`;
+    }, 60);
+
+    // Verdict
+    const verdicts = {
+      high:   '⚠ Multiple strong anomalies detected. Physical inspection strongly recommended. Perform knock test and measure room against exterior.',
+      medium: '◈ Anomalies present but inconclusive. Scan adjacent surfaces under different lighting. Check room dimensions.',
+      low:    '◇ Minor irregularity detected. Expand scan area and run manual checklist to corroborate.',
+      none:   '○ Surface appears uniform. Try adjacent walls, bookcases, or paneled areas.',
+    };
+    const vEl = document.getElementById('verdict-text');
+    vEl.textContent = verdicts[tier];
+    vEl.style.color = color; vEl.style.borderColor = color; vEl.style.background = color + '07';
+
+    // Signal grid
+    const m = r.metrics;
+    const signals = [
+      {icon:'⊡', label:'EDGE DENSITY',   val:m.edgeComplexity,  color:'#c9a84c'},
+      {icon:'↕',  label:'VERT SEAMS',     val:m.verticalSeams,   color:'#4c94c9'},
+      {icon:'↔',  label:'HORIZ LINES',    val:m.horizontalLines, color:'#4cc98b'},
+      {icon:'◑',  label:'CONTRAST UNIF',  val:m.contrastUniform, color:'#c9a84c'},
+      {icon:'⊡', label:'SYMMETRY BREAK', val:m.symmetryBreak,   color:'#c94c4c'},
+      {icon:'☀',  label:'AVG BRIGHTNESS', val:m.avgBrightness,   color:'#777788'},
+    ];
+    const sgEl = document.getElementById('signal-grid');
+    sgEl.innerHTML = '';
+    signals.forEach((sig, i) => {
+      const pv  = Math.round(sig.val * 100);
+      const cell = document.createElement('div');
+      cell.className = 'signal-cell';
+      cell.innerHTML = `<div class="signal-top"><span class="signal-icon">${sig.icon}</span><span class="signal-val" style="color:${sig.color}">${pv}</span></div><div class="signal-label">${sig.label}</div><div class="signal-bar-wrap"><div class="signal-bar" style="width:0%;background:${sig.color};transition:width 0.8s ease ${i*0.07}s"></div></div>`;
+      sgEl.appendChild(cell);
+      setTimeout(() => cell.querySelector('.signal-bar').style.width = pv + '%', 60);
+    });
+
+    // Zones
+    const zEl = document.getElementById('zones-container');
+    zEl.innerHTML = '';
+    r.zones.forEach((z, i) => {
+      const sig = z.signal;
+      const zc  = sig > 0.6 ? '#c94c4c' : sig > 0.4 ? '#c9a84c' : '#4c94c9';
+      const row = document.createElement('div');
+      row.className = 'zone-row';
+      row.innerHTML = `<div class="zone-dot" style="background:${zc}"></div><div class="zone-label">${z.label}</div><div class="zone-bar-wrap"><div class="zone-bar" style="width:0%;background:${zc};transition:width 0.8s ease ${i*0.07}s"></div></div><div class="zone-val">${Math.round(sig*100)}</div>`;
+      zEl.appendChild(row);
+      setTimeout(() => row.querySelector('.zone-bar').style.width = Math.round(sig*100) + '%', 60);
+    });
+
+    // Findings
+    const fEl  = document.getElementById('findings-container');
+    const lbEl = document.getElementById('findings-label');
+    if (!r.findings.length) {
+      lbEl.textContent = 'ANOMALIES DETECTED (0)';
+      fEl.innerHTML = '<div class="no-results">No significant anomalies in this frame.<br>Try adjacent surfaces or run manual checklist.</div>';
+      return;
+    }
+    lbEl.textContent = `ANOMALIES DETECTED (${r.findings.length})`;
+    fEl.innerHTML = '';
+    r.findings.forEach((f, i) => {
+      const fc  = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
+      const fb  = 'badge-' + f.confidence.toLowerCase();
+      const card = document.createElement('div');
+      card.className = 'finding-card';
+      card.style.cssText = `border:1px solid ${fc}1e;animation-delay:${i*0.06}s`;
+      card.innerHTML = `<div class="finding-head"><div class="finding-icon-name"><span class="finding-icon">${f.icon}</span><span class="finding-name">${f.label}</span></div><span class="badge ${fb}">${f.confidence}</span></div><div class="finding-detail">${f.detail}</div><div class="finding-bar-wrap"><div class="finding-bar" style="width:0%;background:${fc};transition:width 0.8s ease ${i*0.1+0.15}s"></div></div>`;
+      fEl.appendChild(card);
+      setTimeout(() => card.querySelector('.finding-bar').style.width = Math.round(f.score*100) + '%', 60);
+    });
+  },
+
+  renderHistory() {
+    const strip = document.getElementById('history-strip');
+    const row   = document.getElementById('history-row');
+    if (!this.history.length) { strip.style.display = 'none'; return; }
+    strip.style.display = 'block';
+    row.innerHTML = '';
+    this.history.forEach(h => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `<img class="history-thumb" src="${h.thumb}"><div class="history-badge" style="color:${h.col}">${h.pct}%</div>`;
+      row.appendChild(item);
+    });
+  },
+
+  reset() {
+    this.stopStream();
+    this.capturedCanvas = null;
+    this.lastResults    = null;
+    document.getElementById('result-canvas-wrap').style.display = 'none';
+    this.showScreen('home');
+  },
+};
 
 // ═══════════════════════════════════════════════════════════
 //  MANUAL CHECKLIST
 // ═══════════════════════════════════════════════════════════
-const MANUAL_GROUPS = [
-  {
-    title: 'VISUAL INSPECTION',
-    checks: [
-      { id:'v1', label:'Seam visible between wall panels or boards', tip:'A thin, consistent gap that paint doesn\'t fully bridge — especially if it runs floor to ceiling' },
-      { id:'v2', label:'Paint or finish changes at a vertical line', tip:'Different sheen (matte vs satin), slight color shift, or texture boundary running top to bottom' },
-      { id:'v3', label:'Trim or molding terminates unexpectedly', tip:'Chair rail, wainscoting, or crown molding that stops at an odd point rather than a corner' },
-      { id:'v4', label:'Bookcase or built-in is off-center or asymmetric', tip:'A fixture that doesn\'t mirror its twin, or a shelf that\'s slightly shallower on one side' },
-      { id:'v5', label:'Unusual hardware visible in trim or paneling', tip:'Extra screws with a different head, flush ring pulls, or small metal catches embedded in wood' },
-    ],
-  },
-  {
-    title: 'KNOCK & SOUND TEST',
-    checks: [
-      { id:'s1', label:'Hollow sound behind suspected wall section', tip:'Rap with your knuckle along the wall — a dull thud vs a hollow resonance indicates a cavity behind' },
-      { id:'s2', label:'Sound changes sharply at a vertical boundary', tip:'Knock left and right of the suspected seam — a distinct tonal shift indicates a break in framing' },
-      { id:'s3', label:'Distinct floor creak pattern near the wall', tip:'Weight-bearing areas around a pivot hinge create characteristic creaking when you step near them' },
-    ],
-  },
-  {
-    title: 'MEASUREMENT & GEOMETRY',
-    checks: [
-      { id:'m1', label:'Room interior smaller than exterior suggests', tip:'Pace exterior wall length, then pace interior. A discrepancy of 2+ feet means hidden space exists' },
-      { id:'m2', label:'Wall thickness exceeds standard 4.5 inches', tip:'Standard interior wall: 3.5″ stud + two layers drywall = ~4.5″. Anything thicker hides something' },
-      { id:'m3', label:'Missing space between adjacent rooms', tip:'Two rooms that should share a wall don\'t add up to the corridor width — there\'s a buffer space' },
-      { id:'m4', label:'Closet depth is unusually shallow', tip:'Standard closet depth: 24″. If significantly shallower, the back wall may be false' },
-    ],
-  },
-  {
-    title: 'LIGHT, AIR & MAGNETIC',
-    checks: [
-      { id:'l1', label:'Light bleed visible under baseboard section', tip:'In a darkened room, shine a flashlight on the far side — gaps in a door frame let light through' },
-      { id:'l2', label:'Draught or air movement at wall surface', tip:'Hold a tissue or your wet hand near suspected seam — any movement means a gap through the structure' },
-      { id:'l3', label:'Magnet responds to flush panel area', tip:'Pass a fridge magnet along the wall at handle height — it will catch at the latch or strike plate zone' },
-      { id:'l4', label:'Floor shows arc-shaped wear or scuff mark', tip:'A semicircular mark on hardwood or carpet indicates a door has swept through this path repeatedly' },
-    ],
-  },
-];
-
 function buildManualChecklist() {
   const container = document.getElementById('manual-checks');
   container.innerHTML = '';
   MANUAL_GROUPS.forEach(group => {
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'check-group';
-    groupDiv.innerHTML = `<div class="check-group-title">${group.title}</div>`;
+    const gDiv = document.createElement('div');
+    gDiv.className = 'check-group';
+    gDiv.innerHTML = `<div class="check-group-title">${group.title}</div>`;
     group.checks.forEach(check => {
       const btn = document.createElement('button');
-      btn.className = 'check-item' + (manualCheckState[check.id] ? ' checked' : '');
+      btn.className = 'check-item' + (app.manualChecks[check.id] ? ' checked' : '');
       btn.dataset.id = check.id;
-      btn.innerHTML = `
-        <div class="check-box">${manualCheckState[check.id] ? '✓' : ''}</div>
-        <div>
-          <div class="check-label">${check.label}</div>
-          <div class="check-tip">${check.tip}</div>
-        </div>`;
+      btn.innerHTML = `<div class="check-box">${app.manualChecks[check.id] ? '✓' : ''}</div><div><div class="check-label">${check.label}</div><div class="check-tip">${check.tip}</div></div>`;
       btn.addEventListener('click', () => toggleCheck(check.id));
-      groupDiv.appendChild(btn);
+      gDiv.appendChild(btn);
     });
-    container.appendChild(groupDiv);
+    container.appendChild(gDiv);
   });
 }
 
 function toggleCheck(id) {
-  manualCheckState[id] = !manualCheckState[id];
-  const totalChecks = MANUAL_GROUPS.reduce((s, g) => s + g.checks.length, 0);
-  const checkedCount = Object.values(manualCheckState).filter(Boolean).length;
-  const pct = Math.round(checkedCount / totalChecks * 100);
+  app.manualChecks[id] = !app.manualChecks[id];
+  haptic(8);
+  const total   = MANUAL_GROUPS.reduce((s, g) => s + g.checks.length, 0);
+  const checked = Object.values(app.manualChecks).filter(Boolean).length;
+  const pct     = Math.round(checked / total * 100);
 
-  // Update button
   const btn = document.querySelector(`.check-item[data-id="${id}"]`);
   if (btn) {
-    btn.classList.toggle('checked', manualCheckState[id]);
-    btn.querySelector('.check-box').textContent = manualCheckState[id] ? '✓' : '';
+    btn.classList.toggle('checked', app.manualChecks[id]);
+    btn.querySelector('.check-box').textContent = app.manualChecks[id] ? '✓' : '';
   }
 
-  // Update score
   const color = pct > 60 ? '#c94c4c' : pct > 35 ? '#c9a84c' : '#4c94c9';
   document.getElementById('manual-score-val').textContent = pct + '%';
   document.getElementById('manual-score-val').style.color = color;
   const bar = document.getElementById('manual-score-bar');
-  bar.style.width = pct + '%';
-  bar.style.background = color;
-  bar.style.boxShadow = `0 0 8px ${color}88`;
+  bar.style.width = pct + '%'; bar.style.background = color; bar.style.boxShadow = `0 0 6px ${color}88`;
 }
 
-// ═══════════════════════════════════════════════════════════
-//  UTILITIES
-// ═══════════════════════════════════════════════════════════
-function resetApp() {
-  stopStream();
-  capturedImageData = null;
-  document.getElementById('result-img-wrap').style.display = 'none';
-  showScreen('home');
-}
-
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ═══════════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════════
 buildManualChecklist();
+
+// ═══════════════════════════════════════════════════════════
+//  MAGNETOMETER — Web Bluetooth / DeviceOrientationEvent
+// ═══════════════════════════════════════════════════════════
+const sensors = {
+  // ── Magnetometer state ──────────────────────────────────
+  magActive:    false,
+  magInterval:  null,
+  magBaseline:  null,   // {x,y,z} at start — drift reference
+  magHistory:   [],     // last 20 magnitude readings
+  magBtDevice:  null,
+  magBtChar:    null,
+
+  // Threshold: µT deviation that signals a nearby ferrous mass (door catch, hinge)
+  MAG_THRESHOLD: 18,    // µT — typical door-catch signature: 15–40µT
+  MAG_ALERT_COUNT: 3,   // consecutive readings above threshold = alert
+
+  magToggle() {
+    this.magActive ? this.magStop() : this.magStart();
+  },
+
+  async magStart() {
+    this.magActive  = true;
+    this.magBaseline = null;
+    this.magHistory  = [];
+    this._magSetStatus('running', 'SCANNING');
+    document.getElementById('mag-btn').textContent = 'STOP SCAN';
+    document.getElementById('mag-btn').classList.add('stop');
+    document.getElementById('mag-panel').classList.add('active');
+    haptic(10);
+
+    // Try Web Bluetooth first (has direct magnetometer characteristic)
+    const btOk = await this._magTryBluetooth();
+    if (!btOk) {
+      // Fall back to DeviceOrientationEvent absolute (includes mag on Android)
+      const doeOk = this._magStartDeviceOrientation();
+      if (!doeOk) {
+        // No sensor available — show instruction
+        this._magSetStatus('idle', 'IDLE');
+        document.getElementById('mag-detail').textContent =
+          'No magnetometer found. On iOS: enable Motion & Fitness. On Android: use Chrome.';
+        this.magStop();
+      }
+    }
+  },
+
+  async _magTryBluetooth() {
+    if (!navigator.bluetooth) return false;
+    try {
+      // Generic Attribute Profile — Environmental Sensing (0x181A) contains magnetic flux
+      this.magBtDevice = await navigator.bluetooth.requestDevice({
+        filters: [{services: ['environmental_sensing']}],
+        optionalServices: ['environmental_sensing'],
+      });
+      const server  = await this.magBtDevice.gatt.connect();
+      const service = await server.getPrimaryService('environmental_sensing');
+      // Magnetic Flux Density 3D characteristic: 0x2AA1
+      this.magBtChar = await service.getCharacteristic(0x2AA1);
+      await this.magBtChar.startNotifications();
+      this.magBtChar.addEventListener('characteristicvaluechanged', e => {
+        const v = e.target.value;
+        // 3 × sint16 in units of 0.1 µT
+        const x = v.getInt16(0, true) / 10;
+        const y = v.getInt16(2, true) / 10;
+        const z = v.getInt16(4, true) / 10;
+        this._magProcess(x, y, z);
+      });
+      document.getElementById('mag-detail').textContent = 'Bluetooth sensor connected';
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  _magStartDeviceOrientation() {
+    if (!window.DeviceOrientationEvent) return false;
+
+    const handler = (e) => {
+      // DeviceOrientationEvent doesn't expose raw µT — use as proxy
+      // webkitCompassHeading + alpha gives heading; beta/gamma give tilt.
+      // We synthesise a "field change" metric from heading + tilt changes.
+      if (e.absolute === false && !e.webkitCompassHeading) return;
+      const heading = e.webkitCompassHeading || e.alpha || 0;
+      const tilt    = Math.sqrt((e.beta||0)**2 + (e.gamma||0)**2);
+      // Map these as synthetic x/y/z proxy values
+      const x = Math.cos(heading * Math.PI / 180) * tilt / 90 * 50;
+      const y = Math.sin(heading * Math.PI / 180) * tilt / 90 * 50;
+      const z = (e.beta || 0) / 180 * 50;
+      this._magProcess(x, y, z);
+    };
+
+    // iOS 13+ requires permission
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(state => {
+          if (state === 'granted') {
+            window.addEventListener('deviceorientationabsolute', handler, true);
+            window.addEventListener('deviceorientation', handler, true);
+            this._magHandler = handler;
+          } else {
+            this.magStop();
+          }
+        }).catch(() => this.magStop());
+    } else {
+      window.addEventListener('deviceorientationabsolute', handler, true);
+      window.addEventListener('deviceorientation', handler, true);
+      this._magHandler = handler;
+    }
+    return true;
+  },
+
+  _magProcess(x, y, z) {
+    if (!this.magBaseline) {
+      this.magBaseline = {x, y, z};
+      document.getElementById('mag-detail').textContent = 'Baseline set — move near wall surface';
+      return;
+    }
+
+    // Delta from baseline
+    const dx  = x - this.magBaseline.x;
+    const dy  = y - this.magBaseline.y;
+    const dz  = z - this.magBaseline.z;
+    const mag = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+    this.magHistory.push(mag);
+    if (this.magHistory.length > 20) this.magHistory.shift();
+
+    // Peak in last 5 readings
+    const peak = Math.max(...this.magHistory.slice(-5));
+    const avg  = this.magHistory.reduce((a,b)=>a+b,0) / this.magHistory.length;
+
+    // Update readout
+    document.getElementById('mag-readout').textContent = mag.toFixed(1) + ' µT';
+
+    // Update bar viz — X Y Z as percentage of ±60µT range
+    const toH = v => Math.round(clamp((Math.abs(v) / 60)) * 100);
+    document.getElementById('mag-x').style.height = toH(dx) + '%';
+    document.getElementById('mag-y').style.height = toH(dy) + '%';
+    document.getElementById('mag-z').style.height = toH(dz) + '%';
+    document.getElementById('mag-x').style.opacity = dx > 0 ? '1' : '0.5';
+    document.getElementById('mag-y').style.opacity = dy > 0 ? '1' : '0.5';
+    document.getElementById('mag-z').style.opacity = dz > 0 ? '1' : '0.5';
+
+    // Alert logic
+    if (peak > this.MAG_THRESHOLD) {
+      const alertCount = this.magHistory.slice(-this.MAG_ALERT_COUNT)
+        .filter(v => v > this.MAG_THRESHOLD).length;
+      if (alertCount >= this.MAG_ALERT_COUNT) {
+        this._magSetStatus('detected', 'CATCH DETECTED');
+        document.getElementById('mag-panel').classList.add('alert');
+        document.getElementById('mag-detail').textContent =
+          `Magnetic anomaly ${mag.toFixed(1)} µT — possible door catch or hinge at this location`;
+        haptic([30, 50, 30]);
+      }
+    } else {
+      this._magSetStatus('running', 'SCANNING');
+      document.getElementById('mag-panel').classList.remove('alert');
+      document.getElementById('mag-detail').textContent =
+        peak < 5
+          ? 'No magnetic anomaly — move along wall surface'
+          : `Field variation ${peak.toFixed(1)} µT — approaching threshold (${this.MAG_THRESHOLD} µT)`;
+    }
+  },
+
+  magStop() {
+    this.magActive = false;
+    if (this.magInterval) { clearInterval(this.magInterval); this.magInterval = null; }
+    if (this._magHandler) {
+      window.removeEventListener('deviceorientationabsolute', this._magHandler, true);
+      window.removeEventListener('deviceorientation', this._magHandler, true);
+      this._magHandler = null;
+    }
+    if (this.magBtChar) { this.magBtChar.stopNotifications().catch(()=>{}); this.magBtChar = null; }
+    if (this.magBtDevice?.gatt?.connected) { this.magBtDevice.gatt.disconnect(); this.magBtDevice = null; }
+
+    this._magSetStatus('idle', 'IDLE');
+    document.getElementById('mag-panel').classList.remove('active', 'alert');
+    document.getElementById('mag-btn').textContent = 'START SCAN';
+    document.getElementById('mag-btn').classList.remove('stop');
+    document.getElementById('mag-readout').textContent = '—';
+    document.getElementById('mag-detail').textContent = 'Detects magnetic door catches and hidden hardware';
+    haptic(8);
+  },
+
+  _magSetStatus(cls, text) {
+    const el = document.getElementById('mag-status');
+    el.className = 'sensor-status ' + cls;
+    el.textContent = text;
+  },
+
+  // ── Acoustic FFT ────────────────────────────────────────
+  fftActive:   false,
+  fftCtx:      null,   // AudioContext
+  fftAnalyser: null,
+  fftSource:   null,
+  fftRaf:      null,
+  fftStream:   null,
+  fftHistory:  [],     // last N dominant freq readings
+
+  // Hollow wall signature: knock produces energy concentration 200–800 Hz
+  // Solid wall: energy spreads 800–3000 Hz with no clear peak
+  HOLLOW_RATIO_THRESHOLD: 0.55,  // low-freq energy ratio to flag hollow
+  KNOCK_DB_THRESHOLD:    -40,    // dB — ignore ambient noise below this
+
+  fftToggle() {
+    this.fftActive ? this.fftStop() : this.fftStart();
+  },
+
+  async fftStart() {
+    this.fftActive  = true;
+    this.fftHistory = [];
+    this._fftSetStatus('running', 'LISTENING');
+    document.getElementById('fft-btn').textContent = 'STOP MIC';
+    document.getElementById('fft-btn').classList.add('stop');
+    document.getElementById('fft-panel').classList.add('active');
+    document.getElementById('fft-detail').textContent = 'Knock firmly on wall — analysing resonance…';
+    haptic(10);
+
+    try {
+      this.fftStream = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
+      this.fftCtx    = new (window.AudioContext || window.webkitAudioContext)();
+      this.fftAnalyser = this.fftCtx.createAnalyser();
+      this.fftAnalyser.fftSize = 2048;
+      this.fftAnalyser.smoothingTimeConstant = 0.7;
+      this.fftSource = this.fftCtx.createMediaStreamSource(this.fftStream);
+      this.fftSource.connect(this.fftAnalyser);
+      this._fftDraw();
+    } catch (err) {
+      document.getElementById('fft-detail').textContent = 'Microphone access required: ' + (err.message || 'denied');
+      this.fftStop();
+    }
+  },
+
+  _fftDraw() {
+    const canvas  = document.getElementById('fft-canvas');
+    if (!canvas || !this.fftAnalyser) return;
+    const ctx     = canvas.getContext('2d');
+    const W       = canvas.width  = canvas.offsetWidth  || 200;
+    const H       = canvas.height = canvas.offsetHeight || 36;
+    const bufLen  = this.fftAnalyser.frequencyBinCount; // 1024 bins
+    const freqData = new Float32Array(bufLen);           // dBFS
+
+    const draw = () => {
+      if (!this.fftActive) return;
+      this.fftRaf = requestAnimationFrame(draw);
+      this.fftAnalyser.getFloatFrequencyData(freqData);
+
+      ctx.fillStyle = '#06060a';
+      ctx.fillRect(0, 0, W, H);
+
+      const sampleRate = this.fftCtx.sampleRate;
+      const binHz      = sampleRate / this.fftAnalyser.fftSize;
+
+      // Frequency bands for hollow detection:
+      // Low  (hollow resonance): 100–800 Hz
+      // High (solid wall):      800–4000 Hz
+      let lowEnergy = 0, lowCount = 0;
+      let highEnergy = 0, highCount = 0;
+      let maxDb = -140;
+
+      for (let i = 0; i < bufLen; i++) {
+        const hz = i * binHz;
+        const db = freqData[i]; // dBFS (negative, -140 to 0)
+        if (db > maxDb) maxDb = db;
+        const norm = (db + 140) / 140; // 0–1
+        if (hz >= 100 && hz < 800)  { lowEnergy  += norm; lowCount++;  }
+        if (hz >= 800 && hz < 4000) { highEnergy += norm; highCount++; }
+
+        // Draw bar — colour by frequency band
+        const x    = Math.floor(i / bufLen * W);
+        const barH = Math.max(1, norm * H);
+        const hue  = hz < 800 ? '200' : hz < 2000 ? '45' : '0';
+        ctx.fillStyle = `hsla(${hue}, 70%, 55%, 0.8)`;
+        ctx.fillRect(x, H - barH, Math.max(1, W / bufLen), barH);
+      }
+
+      // Only analyse when there's a significant knock (above noise floor)
+      if (maxDb > this.KNOCK_DB_THRESHOLD) {
+        const lowAvg  = lowCount  > 0 ? lowEnergy  / lowCount  : 0;
+        const highAvg = highCount > 0 ? highEnergy / highCount : 0;
+        const total   = lowAvg + highAvg;
+        const ratio   = total > 0 ? lowAvg / total : 0;  // 0=all high, 1=all low
+
+        this.fftHistory.push({ratio, maxDb, ts: Date.now()});
+        if (this.fftHistory.length > 30) this.fftHistory.shift();
+
+        // Keep only recent readings (last 2s)
+        const recent = this.fftHistory.filter(r => Date.now() - r.ts < 2000);
+        const avgRatio = recent.length > 3
+          ? recent.reduce((a,b) => a + b.ratio, 0) / recent.length
+          : ratio;
+
+        document.getElementById('fft-readout').textContent = Math.round(maxDb) + ' dB';
+
+        if (avgRatio > this.HOLLOW_RATIO_THRESHOLD) {
+          this._fftSetStatus('detected', 'HOLLOW');
+          document.getElementById('fft-panel').classList.add('alert');
+          document.getElementById('hollow-badge').classList.add('show');
+          document.getElementById('fft-detail').textContent =
+            `Low-freq ratio ${Math.round(avgRatio*100)}% — cavity resonance pattern`;
+          haptic([20, 40, 20]);
+        } else {
+          this._fftSetStatus('running', 'SOLID');
+          document.getElementById('fft-panel').classList.remove('alert');
+          document.getElementById('hollow-badge').classList.remove('show');
+          document.getElementById('fft-detail').textContent =
+            `High-freq dominant ${Math.round((1-avgRatio)*100)}% — solid wall signature`;
+        }
+      } else {
+        // Below noise floor — waiting for knock
+        document.getElementById('fft-readout').textContent = '— dB';
+        document.getElementById('fft-detail').textContent = 'Knock firmly on wall surface to analyse';
+        this._fftSetStatus('running', 'LISTENING');
+        document.getElementById('fft-panel').classList.remove('alert');
+        document.getElementById('hollow-badge').classList.remove('show');
+      }
+    };
+    draw();
+  },
+
+  fftStop() {
+    this.fftActive = false;
+    if (this.fftRaf) { cancelAnimationFrame(this.fftRaf); this.fftRaf = null; }
+    if (this.fftSource)   { this.fftSource.disconnect(); this.fftSource = null; }
+    if (this.fftCtx)      { this.fftCtx.close(); this.fftCtx = null; }
+    if (this.fftStream)   { this.fftStream.getTracks().forEach(t => t.stop()); this.fftStream = null; }
+    this.fftAnalyser = null;
+
+    this._fftSetStatus('idle', 'IDLE');
+    document.getElementById('fft-panel').classList.remove('active', 'alert');
+    document.getElementById('fft-btn').textContent = 'START MIC';
+    document.getElementById('fft-btn').classList.remove('stop');
+    document.getElementById('fft-readout').textContent = '—';
+    document.getElementById('fft-detail').textContent = 'Knock on wall — hollow cavity changes resonance';
+    document.getElementById('hollow-badge').classList.remove('show');
+
+    // Clear canvas
+    const canvas = document.getElementById('fft-canvas');
+    if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); }
+    haptic(8);
+  },
+
+  _fftSetStatus(cls, text) {
+    const el = document.getElementById('fft-status');
+    el.className = 'sensor-status ' + cls;
+    el.textContent = text;
+  },
+};
+
+// Stop sensors when leaving camera screen
+const _origReset = app.reset.bind(app);
+app.reset = function() {
+  sensors.magStop();
+  sensors.fftStop();
+  _origReset();
+};
+
 </script>
 </body>
 </html>
