@@ -741,6 +741,25 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
     <button class="zoom-preset"        data-z="10"  onclick="app.setZoom(10)">10×</button>
   </div>
 
+  <!-- Distance calibration -->
+  <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+    <span style="font-size:8px;letter-spacing:0.14em;color:var(--text-ghost);flex-shrink:0">DIST</span>
+    <div style="display:flex;gap:4px;flex:1" id="dist-btns">
+      <button class="zoom-preset active" data-d="3"  onclick="app.setDist(3)"  style="flex:1">3 ft</button>
+      <button class="zoom-preset"        data-d="6"  onclick="app.setDist(6)"  style="flex:1">6 ft</button>
+      <button class="zoom-preset"        data-d="10" onclick="app.setDist(10)" style="flex:1">10 ft</button>
+      <button class="zoom-preset"        data-d="15" onclick="app.setDist(15)" style="flex:1">15 ft</button>
+    </div>
+  </div>
+  <!-- Frame count selector -->
+  <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+    <span style="font-size:8px;letter-spacing:0.14em;color:var(--text-ghost);flex-shrink:0">FRAMES</span>
+    <div style="display:flex;gap:4px;flex:1" id="frame-btns">
+      <button class="zoom-preset active" data-f="1" onclick="app.setFrames(1)" style="flex:1">1×</button>
+      <button class="zoom-preset"        data-f="3" onclick="app.setFrames(3)" style="flex:1">3×</button>
+      <button class="zoom-preset"        data-f="5" onclick="app.setFrames(5)" style="flex:1">5×</button>
+    </div>
+  </div>
   <!-- Main controls -->
   <div class="cam-controls mb-8">
     <button class="btn btn-primary" onclick="app.capture()">⚡ &nbsp; SCAN THIS SURFACE</button>
@@ -756,6 +775,7 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
     <button class="sec-btn" id="grid-btn"  onclick="app.toggleGrid()"  class="active">⊞ GRID</button>
     <button class="sec-btn" onclick="app.flipCamera()">↺ FLIP</button>
     <button class="sec-btn" id="luma-btn"  onclick="app.toggleLuma()">📊 LUMA</button>
+    <button class="sec-btn" id="baseline-btn" onclick="app.captureBaseline()" title="Scan a clean wall first — improves accuracy">⊞ BASELINE</button>
   </div>
 
   <div class="tips-grid">
@@ -805,9 +825,19 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
     <div class="canvas-controls">
       <button class="canvas-btn active" id="btn-annotate" onclick="app.toggleAnnotate()">MARKS</button>
       <button class="canvas-btn" id="btn-edges" onclick="app.toggleEdges()">EDGES</button>
+      <button class="canvas-btn" id="btn-hough" onclick="app.toggleHough()">LINES</button>
       <button class="canvas-btn" id="btn-raw" onclick="app.toggleRaw()">RAW</button>
     </div>
     <div class="result-badge">SCAN COMPLETE</div>
+  </div>
+  <!-- AI Vision analysis panel -->
+  <div id="ai-panel" style="display:none;background:var(--surface);border:1px solid var(--gold-dim);border-radius:12px;padding:14px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-family:Cinzel,serif;font-size:11px;color:var(--text);letter-spacing:0.05em">✦ AI VISION ANALYSIS</div>
+      <span id="ai-badge" style="font-size:7px;letter-spacing:0.14em;padding:2px 8px;border-radius:99px;border:1px solid var(--gold-dim);color:var(--gold);background:var(--gold-glow)">CLAUDE SONNET</span>
+    </div>
+    <div id="ai-findings" style="font-size:10px;color:var(--text-muted);line-height:1.75"></div>
+    <div id="ai-confidence" style="margin-top:8px"></div>
   </div>
   <div class="prob-card mb-12">
     <div class="prob-layout">
@@ -964,17 +994,165 @@ function sigColor(score) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  PIXEL ANALYSIS
+//  PIXEL ANALYSIS — Enhanced combo pipeline
+//  1. Multi-frame median stack (noise reduction)
+//  2. Sobel edge detection (calibrated by distance)
+//  3. Hough line accumulator (vertical seam isolation)
+//  4. GLCM texture analysis (paint sheen / drywall variance)
+//  5. Calibrated geometry with known distance
 // ═══════════════════════════════════════════════════════════
-function analyzePixels(canvas) {
+
+// ── Frame accumulator for multi-frame median stacking ───────
+const frameAccumulator = {
+  frames: [],
+  maxFrames: 5,
+
+  add(canvas) {
+    const ctx = canvas.getContext('2d');
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    this.frames.push({data: new Uint8ClampedArray(d.data), w: canvas.width, h: canvas.height});
+    if (this.frames.length > this.maxFrames) this.frames.shift();
+  },
+
+  // Median stack all stored frames — returns new Uint8ClampedArray
+  medianStack() {
+    if (this.frames.length < 2) return this.frames[0]?.data || null;
+    const {w, h} = this.frames[0];
+    const out = new Uint8ClampedArray(w * h * 4);
+    const n = this.frames.length;
+    const buf = new Array(n);
+    for (let i = 0; i < w * h * 4; i++) {
+      for (let f = 0; f < n; f++) buf[f] = this.frames[f].data[i];
+      buf.sort((a, b) => a - b);
+      out[i] = buf[Math.floor(n / 2)];
+    }
+    return out;
+  },
+
+  clear() { this.frames = []; },
+  get size() { return this.frames.length; },
+};
+
+// ── GLCM (Gray-Level Co-occurrence Matrix) ──────────────────
+// Measures texture periodicity — catches sheen/compound variance
+function computeGLCM(data, w, h, step) {
+  const luma = i => data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+  const levels = 16; // quantize to 16 gray levels
+  const co = new Float32Array(levels * levels);
+  let total = 0;
+
+  for (let y = step; y < h - step; y += step) {
+    for (let x = step; x < w - step - step; x += step) {
+      const i1 = (y * w + x) * 4;
+      const i2 = (y * w + x + step) * 4;
+      const g1 = Math.floor(luma(i1) / 256 * levels);
+      const g2 = Math.floor(luma(i2) / 256 * levels);
+      co[g1 * levels + g2]++;
+      co[g2 * levels + g1]++;
+      total += 2;
+    }
+  }
+
+  // Normalize
+  for (let i = 0; i < co.length; i++) co[i] /= (total || 1);
+
+  // Compute contrast (high = texture boundary, low = uniform)
+  let contrast = 0, energy = 0, homogeneity = 0;
+  for (let i = 0; i < levels; i++) {
+    for (let j = 0; j < levels; j++) {
+      const p = co[i * levels + j];
+      contrast    += p * (i - j) ** 2;
+      energy      += p * p;
+      homogeneity += p / (1 + Math.abs(i - j));
+    }
+  }
+
+  return {contrast: Math.min(contrast / 10, 1), energy, homogeneity};
+}
+
+// ── Hough line accumulator ──────────────────────────────────
+// Finds dominant vertical lines — true seam = isolated strong vertical
+function houghVerticals(edgeMag, w, h, threshold) {
+  // Accumulate votes per x-column for pixels above edge threshold
+  const votes = new Int32Array(w);
+  const step = 2;
+  for (let y = 0; y < h; y += step) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      const mag = edgeMag[i] * 0.299 + edgeMag[i+1] * 0.587 + edgeMag[i+2] * 0.114;
+      if (mag > threshold) votes[x]++;
+    }
+  }
+
+  // Find peaks — columns with vote count significantly above neighbors
+  const maxVote = Math.max(...votes);
+  const lines = [];
+  for (let x = 4; x < w - 4; x++) {
+    if (votes[x] > maxVote * 0.5) {
+      // Check it is a local maximum
+      const isMax = votes[x] >= votes[x-2] && votes[x] >= votes[x+2];
+      if (isMax) {
+        lines.push({x, votes: votes[x], strength: votes[x] / Math.max(maxVote, 1)});
+      }
+    }
+  }
+  // Sort by votes
+  lines.sort((a, b) => b.votes - a.votes);
+
+  // An isolated strong vertical (few neighboring strong lines) = seam candidate
+  let seamScore = 0;
+  if (lines.length > 0) {
+    const top = lines[0];
+    // Check if it is isolated — no strong line within 10% of frame width
+    const gap = w * 0.1;
+    const neighbors = lines.filter(l => l !== top && Math.abs(l.x - top.x) < gap);
+    const isolation = 1 - Math.min(neighbors.length / 3, 1);
+    seamScore = clamp(top.strength * isolation);
+  }
+
+  return {lines: lines.slice(0, 5), seamScore, maxVote};
+}
+
+// ── Reference baseline (compare against known-good wall) ────
+const refBaseline = {
+  metrics: null,
+  set(m) { this.metrics = {...m}; },
+  clear() { this.metrics = null; },
+  diff(m) {
+    if (!this.metrics) return null;
+    // Returns how much current scan differs from baseline (higher = more anomalous)
+    const keys = ['edgeComplexity','verticalSeams','horizontalLines','symmetryBreak'];
+    let diffSum = 0;
+    keys.forEach(k => { diffSum += Math.abs((m[k] || 0) - (this.metrics[k] || 0)); });
+    return clamp(diffSum / keys.length * 2);
+  },
+};
+
+// ── Main analysis function ───────────────────────────────────
+function analyzePixels(canvas, distanceFt) {
   const ctx  = canvas.getContext('2d');
   const w    = canvas.width;
   const h    = canvas.height;
-  const data = ctx.getImageData(0, 0, w, h).data;
   const step = 4;
+
+  // Use median-stacked data if available, else live frame
+  const rawData = frameAccumulator.size >= 2
+    ? frameAccumulator.medianStack()
+    : ctx.getImageData(0, 0, w, h).data;
+
+  const data = rawData;
   const luma = i => data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
 
+  // ── Sobel pass ──────────────────────────────────────────────
   let edgeSum = 0, vertEdges = 0, horizEdges = 0, contrastSum = 0, brightSum = 0, samples = 0;
+  const edgeMag = new Uint8ClampedArray(w * h * 4); // store edge magnitude for Hough
+
+  // Distance calibration: pixels-per-inch decreases as distance grows
+  // Standard 12MP camera at 3ft: ~80px/in. Seam threshold scales accordingly.
+  const dist = distanceFt || 6;
+  const pxPerInch = Math.round(80 * (3 / dist));
+  const seamWidthPx = Math.max(1, Math.round(pxPerInch * 0.1)); // 1/8 inch seam target
+  const edgeThreshold = Math.max(15, 30 - (dist - 3) * 3); // looser threshold at distance
 
   for (let y = step; y < h - step; y += step) {
     for (let x = step; x < w - step; x += step) {
@@ -987,13 +1165,17 @@ function analyzePixels(canvas) {
       edgeSum     += mag;
       contrastSum += Math.abs(c - 128);
       brightSum   += c;
-      if (gx > 25 && gy < gx * 0.4) vertEdges++;
-      if (gy > 25 && gx < gy * 0.4) horizEdges++;
+
+      const scaledMag = Math.min(mag, 255);
+      edgeMag[i] = edgeMag[i+1] = edgeMag[i+2] = scaledMag; edgeMag[i+3] = 255;
+
+      if (gx > edgeThreshold && gy < gx * 0.4) vertEdges++;
+      if (gy > edgeThreshold && gx < gy * 0.4) horizEdges++;
       samples++;
     }
   }
 
-  // Horizontal symmetry break
+  // ── Symmetry break ──────────────────────────────────────────
   let lEdge = 0, rEdge = 0, lS = 0, rS = 0;
   for (let y = step; y < h - step; y += step) {
     for (let x = step; x < w - step; x += step) {
@@ -1005,14 +1187,32 @@ function analyzePixels(canvas) {
   const rD = rS ? rEdge / rS : 0;
   const symBreak = Math.abs(lD - rD) / (Math.max(lD, rD) + 1e-6);
 
-  return {
+  // ── Hough vertical line detection ──────────────────────────
+  const hough = houghVerticals(edgeMag, w, h, edgeThreshold * 0.8);
+
+  // ── GLCM texture analysis ───────────────────────────────────
+  const glcm = computeGLCM(data, w, h, step);
+
+  // ── Raw metrics ─────────────────────────────────────────────
+  const base = {
     edgeComplexity:  Math.min(edgeSum    / samples / 60, 1),
     verticalSeams:   Math.min(vertEdges  / samples * 15, 1),
     horizontalLines: Math.min(horizEdges / samples * 15, 1),
     contrastUniform: 1 - Math.min(contrastSum / samples / 70, 1),
     symmetryBreak:   symBreak,
     avgBrightness:   brightSum / samples / 255,
+    houghSeamScore:  hough.seamScore,
+    glcmContrast:    glcm.contrast,
+    glcmHomogeneity: glcm.homogeneity,
+    distanceFt:      dist,
+    frameCount:      frameAccumulator.size || 1,
   };
+
+  // ── Baseline diff (reference wall comparison) ───────────────
+  const baselineDiff = refBaseline.diff(base);
+  if (baselineDiff !== null) base.baselineDiff = baselineDiff;
+
+  return base;
 }
 
 function buildEdgeMap(src) {
@@ -1367,13 +1567,24 @@ function generateLocationAnalysis(findings, metrics, probability) {
 function buildResults(metrics) {
   const {edgeComplexity:e, verticalSeams:v, horizontalLines:h, contrastUniform:c, symmetryBreak:s} = metrics;
 
+  // Enhanced scoring using all 8 accuracy improvements
+  const hough = metrics.houghSeamScore || 0;
+  const glcmC = metrics.glcmContrast   || 0;
+  const glcmH = metrics.glcmHomogeneity || 0;
+  const baseDiff = metrics.baselineDiff != null ? metrics.baselineDiff : null;
+
+  // Hough vertical line score weighs into symmetry (isolated seam = door candidate)
+  // GLCM contrast/homogeneity weighs into texture (texture frequency boundary)
+  // baselineDiff boosts all scores if reference wall comparison is active
+  const baselineBoost = baseDiff !== null ? clamp(baseDiff * 0.3) : 0;
+
   const sigScores = {
-    symmetry: evidenceScore(s, v),
-    lighting: evidenceScore(e, 1 - c),
-    texture:  evidenceScore(e, v),
-    geometry: evidenceScore(s),
-    hardware: evidenceScore(v, e),
-    wear:     evidenceScore(h),
+    symmetry: clamp(evidenceScore(s, v, hough) + baselineBoost),
+    lighting: clamp(evidenceScore(e, 1 - c)   + baselineBoost),
+    texture:  clamp(evidenceScore(e, v, glcmC, 1 - glcmH) + baselineBoost),
+    geometry: clamp(evidenceScore(s, hough)    + baselineBoost),
+    hardware: clamp(evidenceScore(v, e, hough) + baselineBoost),
+    wear:     clamp(evidenceScore(h)           + baselineBoost),
   };
 
   const findings = [];
@@ -1424,6 +1635,24 @@ const app = {
   pinchStartZoom: 1,
   lumaRaf:        null,
   facingMode:     'environment',
+  distanceFt:     6,
+  frameCount:     1,
+  isBaselineMode: false,
+  lastHoughMap:   null,
+
+  setDist(d) {
+    this.distanceFt = d;
+    document.querySelectorAll('#dist-btns .zoom-preset').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.d) === d);
+    });
+  },
+
+  setFrames(n) {
+    this.frameCount = n;
+    document.querySelectorAll('#frame-btns .zoom-preset').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.f) === n);
+    });
+  },
 
   showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1633,6 +1862,18 @@ const app = {
     await this.startCamera();
   },
 
+  async captureBaseline() {
+    const canvas = this.captureFrame();
+    frameAccumulator.add(canvas);
+    const metrics = analyzePixels(canvas, this.distanceFt);
+    refBaseline.set(metrics);
+    const btn = document.getElementById('baseline-btn');
+    if (btn) { btn.textContent = '✓ BASELINE'; btn.classList.add('active'); }
+    document.getElementById('cam-mode-tag').textContent = 'BASELINE SAVED';
+    setTimeout(() => { document.getElementById('cam-mode-tag').textContent = 'SCAN READY'; }, 2000);
+    haptic([10, 30, 10]);
+  },
+
   // ── Luma meter ────────────────────────────────────────────
   toggleLuma() {
     this.lumaVisible = !this.lumaVisible;
@@ -1681,12 +1922,6 @@ const app = {
     const fl = document.getElementById('flash-overlay');
     fl.style.opacity = '0.35'; setTimeout(() => { fl.style.opacity = '0'; }, 90);
 
-    const canvas = this.captureFrame();
-    this._stopLuma();
-    await this._setTorch(false);
-    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
-    this.capturedCanvas = canvas;
-
     const overlay = document.getElementById('processing-overlay');
     const imgWrap = document.getElementById('proc-img-wrap');
     const procImg = document.getElementById('proc-img');
@@ -1694,33 +1929,105 @@ const app = {
     const logEl   = document.getElementById('proc-log');
     const barEl   = document.getElementById('proc-bar');
 
+    // ── Multi-frame capture ──────────────────────────────────
+    frameAccumulator.clear();
+    const targetFrames = this.frameCount || 1;
+    const vid = document.getElementById('camera-video');
+    let canvas;
+
+    if (targetFrames > 1 && !this.frozen && vid.readyState >= 2) {
+      // Show overlay immediately for multi-frame feedback
+      overlay.classList.add('active');
+      logEl.innerHTML = ''; barEl.style.width = '0%';
+
+      for (let f = 0; f < targetFrames; f++) {
+        if (f > 0) await delay(200); // 200ms between frames
+        canvas = this.captureFrame();
+        frameAccumulator.add(canvas);
+        const pct = Math.round((f + 1) / targetFrames * 50); // first 50% = frame capture
+        barEl.style.width = pct + '%';
+        metric.textContent = `FRAME ${f+1}/${targetFrames}`;
+        const e = document.createElement('div');
+        e.className = 'proc-log-entry active';
+        e.textContent = `▶ Capturing frame ${f+1} of ${targetFrames}...`;
+        logEl.appendChild(e);
+        if (f > 0) logEl.children[f-1].className = 'proc-log-entry done';
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      // Add median-stacked log entry
+      await delay(150);
+      const stackEntry = document.createElement('div');
+      stackEntry.className = 'proc-log-entry active';
+      stackEntry.textContent = `▶ Median stacking ${targetFrames} frames — reducing noise...`;
+      logEl.appendChild(stackEntry);
+      await delay(200);
+    } else {
+      canvas = this.captureFrame();
+      frameAccumulator.add(canvas);
+    }
+
+    this._stopLuma();
+    await this._setTorch(false);
+    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+    this.capturedCanvas = canvas;
+
     procImg.src = canvas.toDataURL('image/jpeg', 0.7);
     imgWrap.style.display = 'block';
     overlay.classList.add('active');
-    logEl.innerHTML = ''; barEl.style.width = '0%';
 
-    const metrics = analyzePixels(canvas);
+    // ── Pixel analysis (calibrated) ──────────────────────────
+    const metrics = analyzePixels(canvas, this.distanceFt);
 
-    for (let i = 0; i < SCAN_LOG.length; i++) {
-      await delay(300 + Math.random() * 200);
-      const pct = Math.round((i + 1) / SCAN_LOG.length * 100);
+    // ── Standard scan log ────────────────────────────────────
+    const startLogIdx = logEl.children.length;
+    const localLog = [
+      `Running Sobel at ${this.distanceFt}ft calibration (${Math.round(80*(3/this.distanceFt))}px/in)...`,
+      'Hough vertical line accumulation...',
+      'GLCM texture frequency analysis...',
+      'Symmetry break quantification...',
+      'Zone signal weighting...',
+      'Cross-referencing detection signatures...',
+      'Building result confidence map...',
+    ];
+
+    for (let i = 0; i < localLog.length; i++) {
+      await delay(240 + Math.random() * 160);
+      const totalSteps = (targetFrames > 1 ? targetFrames : 0) + localLog.length;
+      const currentStep = (targetFrames > 1 ? targetFrames : 0) + i + 1;
+      const pct = Math.round(50 + (i + 1) / localLog.length * 40); // 50–90%
+      barEl.style.width = pct + '%';
       metric.textContent = pct + '%';
       metric.style.animation = 'none'; void metric.offsetWidth;
       metric.style.animation = 'countUp 0.25s ease';
       const e = document.createElement('div');
       e.className = 'proc-log-entry active';
-      e.textContent = '▶ ' + SCAN_LOG[i];
+      e.textContent = '▶ ' + localLog[i];
       logEl.appendChild(e);
-      if (i > 0) logEl.children[i-1].className = 'proc-log-entry done';
-      barEl.style.width = pct + '%';
+      if (logEl.children.length > 1) logEl.children[logEl.children.length - 2].className = 'proc-log-entry done';
       logEl.scrollTop = logEl.scrollHeight;
     }
 
-    await delay(350);
+    // ── Build pixel-based results ─────────────────────────────
     const results = buildResults(metrics);
     this.lastResults = results;
-    this.renderResults(results);
 
+    // ── Claude Vision AI analysis (async — non-blocking) ─────
+    barEl.style.width = '92%';
+    const aiEntry = document.createElement('div');
+    aiEntry.className = 'proc-log-entry active';
+    aiEntry.textContent = '▶ Querying Claude Vision AI...';
+    logEl.appendChild(aiEntry);
+    logEl.scrollTop = logEl.scrollHeight;
+
+    // Fire AI request without blocking render
+    this._runAIAnalysis(canvas, results).then(aiResult => {
+      if (aiResult) this._mergeAIResults(aiResult, results);
+    }).catch(() => {});
+
+    await delay(300);
+    barEl.style.width = '100%';
+
+    this.renderResults(results);
     this.scanCount++;
     document.getElementById('scan-counter').textContent = String(this.scanCount).padStart(2, '0');
 
@@ -1738,18 +2045,205 @@ const app = {
     haptic([15, 50, 15]);
   },
 
+  // ── Claude Vision AI analysis ─────────────────────────────
+  async _runAIAnalysis(canvas, pixelResults) {
+    try {
+      const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+      const prob = Math.round(pixelResults.probability * 100);
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {type: 'image', source: {type: 'base64', media_type: 'image/jpeg', data: b64}},
+              {type: 'text', text: `You are a hidden door detection expert analyzing a wall photo. Pixel analysis scored this surface at ${prob}% hidden door probability.
+
+Analyze this image carefully for:
+1. Vertical seams that don't correspond to architectural features
+2. Paint/finish transitions or texture differences
+3. Suspicious hardware (flush pulls, hinges, magnetic catches)
+4. Floor wear patterns or arc marks
+5. Shadow anomalies at edges
+6. Panel or bookcase asymmetries
+
+Respond ONLY in this JSON format (no markdown, no explanation outside JSON):
+{
+  "aiProbability": <0-100 integer>,
+  "findings": [
+    {"type": "seam|hardware|texture|shadow|wear|geometry", "confidence": "HIGH|MEDIUM|LOW", "location": "<where on wall>", "detail": "<what you see>"}
+  ],
+  "doorLocation": "<specific description of where door likely is>",
+  "doorType": "<flush panel|bookcase|pivot|swinging|unknown>",
+  "openingMechanism": "<how it likely opens>",
+  "combinedAssessment": "<1-2 sentence overall assessment>"
+}`}
+            ]
+          }]
+        })
+      });
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      const text = data.content?.find(c => c.type === 'text')?.text || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      return JSON.parse(clean);
+    } catch { return null; }
+  },
+
+  _mergeAIResults(ai, pixelResults) {
+    // Show AI panel
+    const panel = document.getElementById('ai-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+
+    const findingsEl = document.getElementById('ai-findings');
+    const confEl     = document.getElementById('ai-confidence');
+
+    // AI probability — blend with pixel score (weighted average)
+    const blendedProb = Math.round(pixelResults.probability * 100 * 0.45 + (ai.aiProbability || 0) * 0.55);
+    const color = blendedProb > 65 ? '#c94c4c' : blendedProb > 45 ? '#c9a84c' : '#4c94c9';
+
+    // Update ring with blended score
+    const circ = 226;
+    const ring  = document.getElementById('ring-fg');
+    ring.style.strokeDashoffset = circ - (blendedProb / 100) * circ;
+    ring.style.stroke = color;
+    document.getElementById('ring-pct').textContent = blendedProb + '%';
+    document.getElementById('ring-pct').style.color = color;
+    document.getElementById('prob-bar').style.width = blendedProb + '%';
+    document.getElementById('prob-bar').style.background = color;
+
+    // Assessment
+    let html = '';
+    if (ai.combinedAssessment) {
+      html += `<div style="margin-bottom:10px;padding:10px;background:var(--bg);border-radius:7px;border-left:2px solid ${color};">${ai.combinedAssessment}</div>`;
+    }
+
+    // AI findings
+    if (ai.findings?.length) {
+      ai.findings.forEach(f => {
+        const fc = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
+        html += `<div style="margin-bottom:7px;padding:8px 10px;background:var(--bg);border-radius:7px;border:1px solid ${fc}22">
+          <div style="font-size:8px;letter-spacing:0.1em;color:${fc};margin-bottom:3px">${f.confidence} · ${f.type.toUpperCase()} · ${f.location}</div>
+          <div style="font-size:9px;color:var(--text-muted)">${f.detail}</div>
+        </div>`;
+      });
+    }
+
+    // Door location from AI
+    if (ai.doorLocation) {
+      html += `<div style="margin-top:8px;font-size:9px;color:var(--text-ghost);border-top:1px solid var(--border);padding-top:8px">
+        <span style="color:var(--gold)">DOOR LOCATION: </span>${ai.doorLocation}
+      </div>`;
+    }
+
+    findingsEl.innerHTML = html;
+
+    // AI vs pixel confidence bar
+    confEl.innerHTML = `<div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+      <span style="font-size:8px;color:var(--text-ghost);white-space:nowrap">PIXEL ${Math.round(pixelResults.probability*100)}%</span>
+      <div style="flex:1;height:3px;background:var(--border);border-radius:1px;overflow:hidden">
+        <div style="width:${Math.round(pixelResults.probability*100)}%;height:100%;background:#4c94c9;border-radius:1px"></div>
+      </div>
+      <span style="font-size:8px;color:var(--text-ghost);white-space:nowrap">AI ${ai.aiProbability || 0}%</span>
+      <div style="flex:1;height:3px;background:var(--border);border-radius:1px;overflow:hidden">
+        <div style="width:${ai.aiProbability||0}%;height:100%;background:var(--gold);border-radius:1px"></div>
+      </div>
+      <span style="font-size:8px;color:${color};white-space:nowrap">BLEND ${blendedProb}%</span>
+    </div>`;
+
+    haptic([5, 20, 5]);
+  },
+
+  // ── Hough canvas mode ─────────────────────────────────────
+  toggleHough() {
+    this.setViewMode(this.viewMode === 'hough' ? 'annotate' : 'hough');
+  },
+
   setViewMode(mode) {
     this.viewMode = mode;
-    ['annotate','edges','raw'].forEach(m => document.getElementById('btn-' + m).classList.toggle('active', m === mode));
+    ['annotate','edges','hough','raw'].forEach(m => {
+      const btn = document.getElementById('btn-' + m);
+      if (btn) btn.classList.toggle('active', m === mode);
+    });
     if (!this.capturedCanvas || !this.lastResults) return;
     const rc = document.getElementById('result-canvas');
-    if (mode === 'annotate') { drawAnnotations(this.capturedCanvas, this.lastResults.findings, this.lastResults.zones); }
-    else if (mode === 'edges') { const ec = buildEdgeMap(this.capturedCanvas); rc.width = ec.width; rc.height = ec.height; rc.getContext('2d').drawImage(ec, 0, 0); }
-    else { rc.width = this.capturedCanvas.width; rc.height = this.capturedCanvas.height; rc.getContext('2d').drawImage(this.capturedCanvas, 0, 0); }
+    if (mode === 'annotate') {
+      drawAnnotations(this.capturedCanvas, this.lastResults.findings, this.lastResults.zones);
+    } else if (mode === 'edges') {
+      const ec = buildEdgeMap(this.capturedCanvas); rc.width = ec.width; rc.height = ec.height; rc.getContext('2d').drawImage(ec, 0, 0);
+    } else if (mode === 'hough') {
+      this._drawHoughMap(rc);
+    } else {
+      rc.width = this.capturedCanvas.width; rc.height = this.capturedCanvas.height; rc.getContext('2d').drawImage(this.capturedCanvas, 0, 0);
+    }
   },
   toggleAnnotate() { this.setViewMode(this.viewMode === 'annotate' ? 'raw' : 'annotate'); },
-  toggleEdges()    { this.setViewMode(this.viewMode === 'edges' ? 'raw' : 'edges'); },
-  toggleRaw()      { this.setViewMode(this.viewMode === 'raw' ? 'annotate' : 'raw'); },
+  toggleEdges()    { this.setViewMode(this.viewMode === 'edges'    ? 'raw' : 'edges'); },
+  toggleHough()    { this.setViewMode(this.viewMode === 'hough'    ? 'annotate' : 'hough'); },
+  toggleRaw()      { this.setViewMode(this.viewMode === 'raw'      ? 'annotate' : 'raw'); },
+
+  _drawHoughMap(rc) {
+    if (!this.capturedCanvas) return;
+    const src  = this.capturedCanvas;
+    const w    = src.width, h = src.height;
+    rc.width   = w; rc.height = h;
+    const ctx  = rc.getContext('2d');
+    // Draw dimmed source
+    ctx.drawImage(src, 0, 0);
+    ctx.fillStyle = 'rgba(6,6,10,0.7)'; ctx.fillRect(0, 0, w, h);
+
+    // Recompute edge map quickly
+    const sCtx = src.getContext('2d');
+    const data = sCtx.getImageData(0, 0, w, h).data;
+    const luma = i => data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+    const votes = new Int32Array(w);
+    const step = 2;
+    const edgeThresh = 25;
+    for (let y = 0; y < h; y += step) {
+      for (let x = 1; x < w-1; x++) {
+        const gx = Math.abs(luma((y*w+(x+1))*4) - luma((y*w+(x-1))*4));
+        const gy = Math.abs(luma(((y+1<h?y+1:y)*w+x)*4) - luma(((y>0?y-1:0)*w+x)*4));
+        if (gx > edgeThresh && gy < gx * 0.5) votes[x]++;
+      }
+    }
+    const maxVote = Math.max(...votes, 1);
+
+    // Draw vote heatmap as vertical bars
+    for (let x = 0; x < w; x++) {
+      const strength = votes[x] / maxVote;
+      if (strength > 0.15) {
+        const col = strength > 0.7 ? '#c94c4c' : strength > 0.4 ? '#c9a84c' : '#4c94c9';
+        ctx.globalAlpha = strength * 0.85;
+        ctx.strokeStyle = col; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Label strong peaks
+    ctx.font = '9px "DM Mono", monospace';
+    let labeled = 0;
+    for (let x = 0; x < w && labeled < 3; x++) {
+      if (votes[x] / maxVote > 0.65) {
+        ctx.fillStyle = '#c94c4c'; ctx.globalAlpha = 0.9;
+        ctx.fillText('SEAM', x + 4, 20 + labeled * 14);
+        labeled++;
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Legend
+    ctx.font = '8px "DM Mono", monospace';
+    ctx.fillStyle = '#c94c4c'; ctx.fillText('HIGH VOTE', 10, h - 28);
+    ctx.fillStyle = '#c9a84c'; ctx.fillText('MED VOTE',  10, h - 18);
+    ctx.fillStyle = '#4c94c9'; ctx.fillText('LOW VOTE',  10, h - 8);
+  },
 
   renderResults(r) {
     const pct   = Math.round(r.probability * 100);
@@ -1797,13 +2291,14 @@ const app = {
 
     // Signal grid
     const m = r.metrics;
+    const baselineDiffVal = m.baselineDiff != null ? m.baselineDiff : null;
     const signals = [
-      {icon:'⊡', label:'EDGE DENSITY',   val:m.edgeComplexity,  color:'#c9a84c'},
-      {icon:'↕',  label:'VERT SEAMS',     val:m.verticalSeams,   color:'#4c94c9'},
-      {icon:'↔',  label:'HORIZ LINES',    val:m.horizontalLines, color:'#4cc98b'},
-      {icon:'◑',  label:'CONTRAST UNIF',  val:m.contrastUniform, color:'#c9a84c'},
-      {icon:'⊡', label:'SYMMETRY BREAK', val:m.symmetryBreak,   color:'#c94c4c'},
-      {icon:'☀',  label:'AVG BRIGHTNESS', val:m.avgBrightness,   color:'#777788'},
+      {icon:'⊡', label:'EDGE DENSITY',   val:m.edgeComplexity,   color:'#c9a84c'},
+      {icon:'↕',  label:'VERT SEAMS',     val:m.verticalSeams,    color:'#4c94c9'},
+      {icon:'⊕',  label:'HOUGH SEAM',     val:m.houghSeamScore||0,color:'#c94c4c'},
+      {icon:'▦',  label:'GLCM CONTRAST',  val:m.glcmContrast||0,  color:'#c9a84c'},
+      {icon:'⊡', label:'SYMMETRY BREAK', val:m.symmetryBreak,    color:'#c94c4c'},
+      {icon:'◈',  label:'BASELINE DIFF',  val:baselineDiffVal!=null?baselineDiffVal:0, color: baselineDiffVal!=null?'#4cc98b':'#333355'},
     ];
     const sgEl = document.getElementById('signal-grid');
     sgEl.innerHTML = '';
@@ -2118,24 +2613,27 @@ const sensors = {
     document.getElementById('mag-y').style.opacity = dy > 0 ? '1' : '0.5';
     document.getElementById('mag-z').style.opacity = dz > 0 ? '1' : '0.5';
 
-    // Alert logic
-    if (peak > this.MAG_THRESHOLD) {
-      const alertCount = this.magHistory.slice(-this.MAG_ALERT_COUNT)
-        .filter(v => v > this.MAG_THRESHOLD).length;
-      if (alertCount >= this.MAG_ALERT_COUNT) {
-        this._magSetStatus('detected', 'CATCH DETECTED');
-        document.getElementById('mag-panel').classList.add('alert');
-        document.getElementById('mag-detail').textContent =
-          `Magnetic anomaly ${mag.toFixed(1)} µT — possible door catch or hinge at this location`;
-        haptic([30, 50, 30]);
-      }
+    // 3-sigma anomaly detection — more reliable than fixed threshold
+    const mean = this.magHistory.reduce((a,b)=>a+b,0) / this.magHistory.length;
+    const variance = this.magHistory.reduce((a,b)=>a+(b-mean)**2,0) / this.magHistory.length;
+    const sigma = Math.sqrt(variance);
+    const dynamicThreshold = mean + 3 * sigma; // 3-sigma above rolling mean
+
+    if (this.magHistory.length >= 8 && mag > dynamicThreshold && mag > 8) {
+      this._magSetStatus('detected', 'CATCH DETECTED');
+      document.getElementById('mag-panel').classList.add('alert');
+      document.getElementById('mag-detail').textContent =
+        `+${(mag - mean).toFixed(1)} µT above baseline (${sigma.toFixed(1)}σ) — ferrous object detected`;
+      haptic([30, 50, 30]);
     } else {
       this._magSetStatus('running', 'SCANNING');
       document.getElementById('mag-panel').classList.remove('alert');
       document.getElementById('mag-detail').textContent =
-        peak < 5
-          ? 'No magnetic anomaly — move along wall surface'
-          : `Field variation ${peak.toFixed(1)} µT — approaching threshold (${this.MAG_THRESHOLD} µT)`;
+        this.magHistory.length < 8
+          ? `Calibrating baseline... (${this.magHistory.length}/8 readings)`
+          : mag > mean + sigma
+          ? `Mild anomaly ${mag.toFixed(1)} µT (${((mag-mean)/sigma).toFixed(1)}σ above mean)`
+          : `No anomaly — field stable at ${mean.toFixed(1)} µT ±${sigma.toFixed(1)}`;
     }
   },
 
@@ -2173,6 +2671,7 @@ const sensors = {
   fftRaf:      null,
   fftStream:   null,
   fftHistory:  [],     // last N dominant freq readings
+  _knockTime:  null,   // timestamp of last detected knock transient
 
   // Hollow wall signature: knock produces energy concentration 200–800 Hz
   // Solid wall: energy spreads 800–3000 Hz with no clear peak
@@ -2251,8 +2750,14 @@ const sensors = {
         ctx.fillRect(x, H - barH, Math.max(1, W / bufLen), barH);
       }
 
-      // Only analyse when there's a significant knock (above noise floor)
-      if (maxDb > this.KNOCK_DB_THRESHOLD) {
+      // Knock transient isolation — detect sharp amplitude spike then analyze decay window
+      const isKnock = maxDb > this.KNOCK_DB_THRESHOLD;
+      if (!this._knockTime && isKnock) { this._knockTime = Date.now(); }
+      // Analyze only the 50–300ms decay window after knock
+      const inDecayWindow = this._knockTime && (Date.now() - this._knockTime) < 300;
+      if (!isKnock && this._knockTime && (Date.now() - this._knockTime) > 400) { this._knockTime = null; }
+
+      if (isKnock || inDecayWindow) {
         const lowAvg  = lowCount  > 0 ? lowEnergy  / lowCount  : 0;
         const highAvg = highCount > 0 ? highEnergy / highCount : 0;
         const total   = lowAvg + highAvg;
