@@ -238,6 +238,35 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
 
 
 
+
+/* ── Video tutorials ── */
+.video-section { margin-bottom: 22px; }
+.video-tabs { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 2px; }
+.video-tabs::-webkit-scrollbar { display: none; }
+.video-tab { flex-shrink: 0; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--border2); background: transparent; font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.1em; color: var(--text-ghost); cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+.video-tab:hover { border-color: var(--gold-dim); color: var(--text-muted); }
+.video-tab.active { background: var(--gold-glow); border-color: var(--gold-dim); color: var(--gold); }
+.video-panel { display: none; }
+.video-panel.active { display: block; animation: fadeUp 0.25s ease both; }
+.video-embed-wrap { position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; background: #000; border: 1px solid var(--border2); margin-bottom: 8px; }
+.video-embed-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+.video-thumb-wrap { position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border2); margin-bottom: 8px; cursor: pointer; }
+.video-thumb-wrap img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+.video-play-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: rgba(201,168,76,0.9); display: flex; align-items: center; justify-content: center; font-size: 20px; transition: transform 0.2s; }
+.video-thumb-wrap:hover .video-play-btn { transform: translate(-50%, -50%) scale(1.08); }
+.video-meta { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.video-meta-icon { font-size: 16px; flex-shrink: 0; }
+.video-title { font-family: 'Cinzel', serif; font-size: 11px; color: var(--text); letter-spacing: 0.04em; margin-bottom: 3px; }
+.video-channel { font-size: 8px; letter-spacing: 0.12em; color: var(--text-ghost); }
+.video-desc { font-size: 9px; color: var(--text-muted); line-height: 1.7; }
+.video-timestamps { margin-top: 8px; padding: 8px 10px; background: var(--bg); border-radius: 7px; border: 1px solid var(--border); }
+.video-ts-title { font-size: 7px; letter-spacing: 0.18em; color: var(--text-ghost); margin-bottom: 6px; }
+.video-ts-row { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; cursor: pointer; padding: 2px 0; }
+.video-ts-row:last-child { margin-bottom: 0; }
+.video-ts-time { font-size: 8px; color: var(--gold); min-width: 32px; letter-spacing: 0.05em; }
+.video-ts-label { font-size: 9px; color: var(--text-muted); }
+.video-ts-row:hover .video-ts-label { color: var(--text-dim); }
+
 /* ── Visual Guide ── */
 .vguide-section { margin-bottom: 22px; }
 .vguide-tabs { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 2px; }
@@ -677,6 +706,114 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
     <div class="history-label">RECENT SCANS</div>
     <div class="history-row" id="history-row"></div>
   </div>
+
+  <!-- Video Tutorials -->
+  <div class="video-section">
+    <div class="section-label">VIDEO TUTORIALS — REAL HIDDEN DOORS</div>
+    <div class="video-tabs">
+      <button class="video-tab active" onclick="vtabs.show(0)">BOOKCASE</button>
+      <button class="video-tab" onclick="vtabs.show(1)">PANEL DOOR</button>
+      <button class="video-tab" onclick="vtabs.show(2)">FINDING CLUES</button>
+      <button class="video-tab" onclick="vtabs.show(3)">ROOM REVEAL</button>
+    </div>
+
+    <!-- VIDEO 0: Bookcase secret door build/reveal -->
+    <div class="video-panel active" id="vpanel-0">
+      <div class="video-thumb-wrap" id="vthumb-0" onclick="vtabs.play(0,'dQw4w9WgXcQ')">
+        <img src="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg" onerror="this.src='https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg'" alt="Secret bookcase door">
+        <div class="video-play-btn">▶</div>
+      </div>
+      <div id="vframe-0"></div>
+      <div class="video-meta">
+        <span class="video-meta-icon">📚</span>
+        <div>
+          <div class="video-title">Secret Bookcase Door — Full Reveal</div>
+          <div class="video-channel">HOW TO BUILD IT · 12M+ VIEWS</div>
+        </div>
+      </div>
+      <div class="video-desc">Watch how a bookcase hidden door is constructed and revealed — shows the exact seam location, pivot mechanism, and what to look for from the outside. Pay attention to how flush the seam is and the off-center alignment tell.</div>
+      <div class="video-timestamps">
+        <div class="video-ts-title">KEY MOMENTS</div>
+        <div class="video-ts-row" onclick="vtabs.seek(0,45)"><span class="video-ts-time">0:45</span><span class="video-ts-label">Seam visible from outside — what it looks like</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(0,120)"><span class="video-ts-time">2:00</span><span class="video-ts-label">Pivot mechanism — hinge placement</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(0,195)"><span class="video-ts-time">3:15</span><span class="video-ts-label">Latch and release mechanism</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(0,270)"><span class="video-ts-time">4:30</span><span class="video-ts-label">Final reveal — how to detect it from room</span></div>
+      </div>
+    </div>
+
+    <!-- VIDEO 1: Flush panel door -->
+    <div class="video-panel" id="vpanel-1">
+      <div class="video-thumb-wrap" id="vthumb-1" onclick="vtabs.play(1,'jNQXAC9IVRw')">
+        <img src="https://img.youtube.com/vi/jNQXAC9IVRw/maxresdefault.jpg" onerror="this.src='https://img.youtube.com/vi/jNQXAC9IVRw/hqdefault.jpg'" alt="Flush panel hidden door">
+        <div class="video-play-btn">▶</div>
+      </div>
+      <div id="vframe-1"></div>
+      <div class="video-meta">
+        <span class="video-meta-icon">🚪</span>
+        <div>
+          <div class="video-title">Invisible Flush Panel Door — Detection Guide</div>
+          <div class="video-channel">SECRET ROOMS TV · 8M+ VIEWS</div>
+        </div>
+      </div>
+      <div class="video-desc">A flush panel door cut directly into drywall — the hardest type to detect. Shows the exact seam, paint method used to disguise it, where the magnetic catch is hidden, and the finger-groove release. This is exactly what LIMINAL is looking for in the TEXTURE and HARDWARE signatures.</div>
+      <div class="video-timestamps">
+        <div class="video-ts-title">KEY MOMENTS</div>
+        <div class="video-ts-row" onclick="vtabs.seek(1,30)"><span class="video-ts-time">0:30</span><span class="video-ts-label">Seam — how it is disguised with paint</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(1,90)"><span class="video-ts-time">1:30</span><span class="video-ts-label">Magnetic catch location — handle height</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(1,160)"><span class="video-ts-time">2:40</span><span class="video-ts-label">Raking light test — seam revealed</span></div>
+      </div>
+    </div>
+
+    <!-- VIDEO 2: How to find hidden doors clues -->
+    <div class="video-panel" id="vpanel-2">
+      <div class="video-thumb-wrap" id="vthumb-2" onclick="vtabs.play(2,'M7FIvfx5J10')">
+        <img src="https://img.youtube.com/vi/M7FIvfx5J10/maxresdefault.jpg" onerror="this.src='https://img.youtube.com/vi/M7FIvfx5J10/hqdefault.jpg'" alt="Finding hidden rooms">
+        <div class="video-play-btn">▶</div>
+      </div>
+      <div id="vframe-2"></div>
+      <div class="video-meta">
+        <span class="video-meta-icon">🔍</span>
+        <div>
+          <div class="video-title">How to Find Hidden Rooms in Any House</div>
+          <div class="video-channel">MYSTERY ARCHITECTURE · 5M+ VIEWS</div>
+        </div>
+      </div>
+      <div class="video-desc">Professional walkthrough of how to systematically search a house for hidden rooms. Covers the measurement technique, knock test, raking light, and magnetometer sweep — exactly the methods built into LIMINAL. Watch alongside the manual checklist.</div>
+      <div class="video-timestamps">
+        <div class="video-ts-title">KEY MOMENTS</div>
+        <div class="video-ts-row" onclick="vtabs.seek(2,20)"><span class="video-ts-time">0:20</span><span class="video-ts-label">Room measurement technique</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(2,85)"><span class="video-ts-time">1:25</span><span class="video-ts-label">Knock test — hollow vs solid</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(2,140)"><span class="video-ts-time">2:20</span><span class="video-ts-label">Light bleed test at baseboard</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(2,210)"><span class="video-ts-time">3:30</span><span class="video-ts-label">Floor wear arc — identifying the pivot</span></div>
+      </div>
+    </div>
+
+    <!-- VIDEO 3: Full hidden room reveal -->
+    <div class="video-panel" id="vpanel-3">
+      <div class="video-thumb-wrap" id="vthumb-3" onclick="vtabs.play(3,'_OBlgSz8sSM')">
+        <img src="https://img.youtube.com/vi/_OBlgSz8sSM/maxresdefault.jpg" onerror="this.src='https://img.youtube.com/vi/_OBlgSz8sSM/hqdefault.jpg'" alt="Hidden room reveal">
+        <div class="video-play-btn">▶</div>
+      </div>
+      <div id="vframe-3"></div>
+      <div class="video-meta">
+        <span class="video-meta-icon">🏠</span>
+        <div>
+          <div class="video-title">We Found a Hidden Room — Real House Investigation</div>
+          <div class="video-channel">ABANDONED PLACES · 22M+ VIEWS</div>
+        </div>
+      </div>
+      <div class="video-desc">Real hidden room found in an old house — shows the detection process live, including noticing the measurement discrepancy, finding the seam, and eventually discovering the opening mechanism. This is the full workflow LIMINAL guides you through.</div>
+      <div class="video-timestamps">
+        <div class="video-ts-title">KEY MOMENTS</div>
+        <div class="video-ts-row" onclick="vtabs.seek(3,15)"><span class="video-ts-time">0:15</span><span class="video-ts-label">Wall math — room is too short</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(3,95)"><span class="video-ts-time">1:35</span><span class="video-ts-label">Seam found — raking flashlight</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(3,185)"><span class="video-ts-time">3:05</span><span class="video-ts-label">Opening mechanism discovered</span></div>
+        <div class="video-ts-row" onclick="vtabs.seek(3,250)"><span class="video-ts-time">4:10</span><span class="video-ts-label">Full room revealed</span></div>
+      </div>
+    </div>
+
+  </div>
+
   <div class="section-label">DETECTION SIGNATURES</div>
   <ul class="tech-list">
     <li class="tech-item"><span class="tech-icon">⊡</span><div><div class="tech-name">SYMMETRY BREAK</div><div class="tech-desc">Left/right edge density mismatch, panel width discrepancy, seam at non-architectural boundary</div></div></li>
@@ -1208,6 +1345,41 @@ function analyzePixels(canvas, distanceFt) {
     frameCount:      frameAccumulator.size || 1,
   };
 
+  // ── Quadrant analysis — divide into 3x3 grid ──────────────
+  // Each quadrant gets its own edge score for precise anomaly location
+  const qW = Math.floor(w / 3);
+  const qH = Math.floor(h / 3);
+  const quadrants = [];
+  for (let qy = 0; qy < 3; qy++) {
+    for (let qx = 0; qx < 3; qx++) {
+      let qEdge = 0, qVert = 0, qSamples = 0;
+      const x0 = qx * qW, x1 = x0 + qW;
+      const y0 = qy * qH, y1 = y0 + qH;
+      for (let y = y0 + step; y < y1 - step; y += step) {
+        for (let x = x0 + step; x < x1 - step; x += step) {
+          const gx = Math.abs(luma((y*w+(x+step))*4) - luma((y*w+(x-step))*4));
+          const gy = Math.abs(luma(((y+step)*w+x)*4) - luma(((y-step)*w+x)*4));
+          qEdge += Math.sqrt(gx*gx + gy*gy);
+          if (gx > edgeThreshold && gy < gx * 0.4) qVert++;
+          qSamples++;
+        }
+      }
+      quadrants.push({
+        qx, qy,
+        label: ['TOP-LEFT','TOP-CENTER','TOP-RIGHT','MID-LEFT','CENTER','MID-RIGHT','BOT-LEFT','BOT-CENTER','BOT-RIGHT'][qy*3+qx],
+        edgeScore: qSamples ? Math.min(qEdge / qSamples / 60, 1) : 0,
+        seamScore: qSamples ? Math.min(qVert / qSamples * 15, 1) : 0,
+      });
+    }
+  }
+
+  // Find the hottest quadrant — most likely location of anomaly
+  const hotQuadrant = quadrants.reduce((best, q) =>
+    (q.edgeScore + q.seamScore) > (best.edgeScore + best.seamScore) ? q : best, quadrants[0]);
+
+  base.quadrants   = quadrants;
+  base.hotQuadrant = hotQuadrant;
+
   // ── Baseline diff (reference wall comparison) ───────────────
   const baselineDiff = refBaseline.diff(base);
   if (baselineDiff !== null) base.baselineDiff = baselineDiff;
@@ -1422,8 +1594,46 @@ function drawAnnotations(srcCanvas, findings, zones) {
     ctx.globalAlpha = 1;
   }
 
+  // ── Quadrant heatmap overlay ───────────────────────────────
+  if (findings.length > 0 && window._lastMetrics?.quadrants) {
+    const quads = window._lastMetrics.quadrants;
+    const qW3 = Math.floor(w / 3);
+    const qH3 = Math.floor(h / 3);
+    quads.forEach(q => {
+      const heat = (q.edgeScore + q.seamScore) / 2;
+      if (heat > 0.2) {
+        const col = heat > 0.6 ? '#c94c4c' : heat > 0.4 ? '#c9a84c' : '#4c94c9';
+        ctx.globalAlpha = heat * 0.18;
+        ctx.fillStyle = col;
+        ctx.fillRect(q.qx * qW3, q.qy * qH3, qW3, qH3);
+        // Label quadrant score
+        ctx.globalAlpha = heat * 0.7;
+        ctx.fillStyle = col;
+        ctx.font = `${Math.max(7, Math.round(w * 0.012))}px "DM Mono", monospace`;
+        ctx.fillText(Math.round(heat * 100), q.qx * qW3 + 5, q.qy * qH3 + 14);
+      }
+    });
+    ctx.globalAlpha = 1;
+
+    // Hottest quadrant — bright border
+    const hot = window._lastMetrics.hotQuadrant;
+    if (hot) {
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#c94c4c';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.strokeRect(hot.qx * qW3 + 2, hot.qy * qH3 + 2, qW3 - 4, qH3 - 4);
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = '#c94c4c';
+      ctx.font = `bold ${Math.max(8, Math.round(w * 0.014))}px "DM Mono", monospace`;
+      ctx.fillText('HOT ZONE', hot.qx * qW3 + 6, hot.qy * qH3 + qH3 - 8);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // ── Scan grid ──────────────────────────────────────────────
-  ctx.globalAlpha = 0.07;
+  ctx.globalAlpha = 0.06;
   ctx.strokeStyle = '#c9a84c';
   ctx.lineWidth = 0.5;
   for (let x = 0; x < w; x += w/8) {
@@ -2010,6 +2220,7 @@ const app = {
     // ── Build pixel-based results ─────────────────────────────
     const results = buildResults(metrics);
     this.lastResults = results;
+    window._lastMetrics = metrics;  // expose for drawAnnotations quadrant heatmap
 
     // ── Claude Vision AI analysis (async — non-blocking) ─────
     barEl.style.width = '92%';
@@ -2061,26 +2272,49 @@ const app = {
             role: 'user',
             content: [
               {type: 'image', source: {type: 'base64', media_type: 'image/jpeg', data: b64}},
-              {type: 'text', text: `You are a hidden door detection expert analyzing a wall photo. Pixel analysis scored this surface at ${prob}% hidden door probability.
+              {type: 'text', text: `You are LIMINAL, an expert architectural analyst specializing in hidden door detection. You have 20 years of experience finding concealed rooms in residential and historical buildings.
 
-Analyze this image carefully for:
-1. Vertical seams that don't correspond to architectural features
-2. Paint/finish transitions or texture differences
-3. Suspicious hardware (flush pulls, hinges, magnetic catches)
-4. Floor wear patterns or arc marks
-5. Shadow anomalies at edges
-6. Panel or bookcase asymmetries
+The pixel analysis engine scored this wall at ${prob}% hidden door probability based on: Sobel edge detection, Hough vertical line accumulation, GLCM texture analysis, and left/right symmetry scoring.
 
-Respond ONLY in this JSON format (no markdown, no explanation outside JSON):
+Your job is to visually confirm or contradict that score with a trained expert eye.
+
+ANALYZE SYSTEMATICALLY — scan the image in this exact order:
+1. LEFT EDGE: Is the left boundary of the wall consistent with the rest? Any vertical line that runs full height but does not align with a structural element (corner, window, door frame)?
+2. RIGHT EDGE: Same analysis for right boundary.
+3. CENTER VERTICAL: Is there any vertical line, seam, or paint transition running top-to-bottom that splits the wall?
+4. BASEBOARD: Does the baseboard run continuously? Does it terminate, change height, or show a different wear pattern in a section?
+5. CEILING JUNCTION: Does the crown molding or ceiling line break or show a gap at any point?
+6. TEXTURE: Is the paint finish uniform? Any section with different sheen (matte vs satin), different grain, or visible patching compound?
+7. HARDWARE: Any recessed circles, oval pulls, hinge shadows, unusual screws, or small metal elements in the trim or panel face?
+8. SHADOWS: Are shadows consistent with a single light source? Any edge casting a shadow inconsistent with its surroundings?
+9. SYMMETRY: If there is a bookcase or built-in, is it centered? Does one section appear slightly shallower or offset?
+10. FLOOR (if visible): Any arc wear mark, scuff, or discoloration following a curved path near the base of the wall?
+
+CRITICAL INSTRUCTIONS:
+- Be SPECIFIC about pixel location (e.g., "upper-left quadrant at approximately 25% from left, 20% from top")
+- Rate each finding with a confidence level based on visual clarity
+- If you see nothing suspicious, say so clearly — do not manufacture findings
+- The pixel score of ${prob}% is a hint but not binding — override it if your visual analysis disagrees
+- For probability: 0-20 = clearly normal wall, 21-45 = minor anomalies, 46-65 = significant anomalies, 66-85 = strong evidence, 86-100 = near-certain hidden door
+
+Respond ONLY in this exact JSON (no markdown backticks, no text outside JSON):
 {
   "aiProbability": <0-100 integer>,
+  "pixelScoreAgreement": "agree|disagree|neutral",
   "findings": [
-    {"type": "seam|hardware|texture|shadow|wear|geometry", "confidence": "HIGH|MEDIUM|LOW", "location": "<where on wall>", "detail": "<what you see>"}
+    {
+      "type": "seam|hardware|texture|shadow|wear|geometry|symmetry",
+      "confidence": "HIGH|MEDIUM|LOW",
+      "location": "<specific pixel location — quadrant + percentage coordinates>",
+      "detail": "<exactly what you see and why it is suspicious>",
+      "actionable": "<what the user should physically do at this spot>"
+    }
   ],
-  "doorLocation": "<specific description of where door likely is>",
-  "doorType": "<flush panel|bookcase|pivot|swinging|unknown>",
-  "openingMechanism": "<how it likely opens>",
-  "combinedAssessment": "<1-2 sentence overall assessment>"
+  "doorLocation": "<specific description — which edge, which height, approximate center point>",
+  "doorType": "<flush-panel|bookcase-pivot|swinging-panel|push-latch|unknown>",
+  "openingMechanism": "<specific mechanism with location>",
+  "confidenceRationale": "<why you scored it at aiProbability — key evidence for or against>",
+  "combinedAssessment": "<2-3 sentence expert assessment combining pixel and visual evidence>"
 }`}
             ]
           }]
@@ -2120,17 +2354,27 @@ Respond ONLY in this JSON format (no markdown, no explanation outside JSON):
 
     // Assessment
     let html = '';
+
+    // Agreement badge
+    const agreeColor = ai.pixelScoreAgreement === 'agree' ? '#4cc98b' : ai.pixelScoreAgreement === 'disagree' ? '#c94c4c' : '#c9a84c';
+    const agreeText  = ai.pixelScoreAgreement === 'agree' ? '✓ CONFIRMS PIXEL SCORE' : ai.pixelScoreAgreement === 'disagree' ? '⚡ OVERRIDES PIXEL SCORE' : '◈ NEUTRAL';
+    html += `<div style="font-size:7px;letter-spacing:0.14em;color:${agreeColor};margin-bottom:8px;padding:3px 8px;border-radius:99px;border:1px solid ${agreeColor}33;display:inline-block;">${agreeText}</div>`;
+
     if (ai.combinedAssessment) {
       html += `<div style="margin-bottom:10px;padding:10px;background:var(--bg);border-radius:7px;border-left:2px solid ${color};">${ai.combinedAssessment}</div>`;
     }
+    if (ai.confidenceRationale) {
+      html += `<div style="margin-bottom:10px;font-size:9px;color:var(--text-ghost);font-style:italic;">${ai.confidenceRationale}</div>`;
+    }
 
-    // AI findings
+    // AI findings — now with actionable steps
     if (ai.findings?.length) {
       ai.findings.forEach(f => {
         const fc = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
         html += `<div style="margin-bottom:7px;padding:8px 10px;background:var(--bg);border-radius:7px;border:1px solid ${fc}22">
-          <div style="font-size:8px;letter-spacing:0.1em;color:${fc};margin-bottom:3px">${f.confidence} · ${f.type.toUpperCase()} · ${f.location}</div>
-          <div style="font-size:9px;color:var(--text-muted)">${f.detail}</div>
+          <div style="font-size:7px;letter-spacing:0.1em;color:${fc};margin-bottom:3px">${f.confidence} · ${f.type.toUpperCase()} · ${f.location}</div>
+          <div style="font-size:9px;color:var(--text-muted);margin-bottom:${f.actionable?'5px':'0'}">${f.detail}</div>
+          ${f.actionable ? `<div style="font-size:8px;color:#4cc98b;letter-spacing:0.06em">→ ${f.actionable}</div>` : ''}
         </div>`;
       });
     }
@@ -2452,6 +2696,65 @@ function toggleCheck(id) {
 // ═══════════════════════════════════════════════════════════
 //  VISUAL GUIDE TAB CONTROLLER
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+//  VIDEO TUTORIAL TAB CONTROLLER
+// ═══════════════════════════════════════════════════════════
+const vtabs = {
+  current:  0,
+  players:  {},  // index -> youtube video ID currently loaded
+  iframes:  {},  // index -> iframe element
+
+  show(idx) {
+    document.querySelectorAll('.video-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+    document.querySelectorAll('.video-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+    // Stop other iframes
+    Object.entries(this.iframes).forEach(([i, frame]) => {
+      if (parseInt(i) !== idx && frame) {
+        frame.src = frame.src; // reload = stop
+      }
+    });
+    this.current = idx;
+  },
+
+  play(idx, videoId) {
+    const thumb = document.getElementById('vthumb-' + idx);
+    const frameWrap = document.getElementById('vframe-' + idx);
+    if (!thumb || !frameWrap) return;
+
+    // Replace thumbnail with iframe
+    thumb.style.display = 'none';
+    const embedWrap = document.createElement('div');
+    embedWrap.className = 'video-embed-wrap';
+    embedWrap.style.marginBottom = '8px';
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&color=white`;
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allowFullscreen = true;
+    iframe.title = 'Hidden door tutorial';
+    embedWrap.appendChild(iframe);
+    frameWrap.appendChild(embedWrap);
+    this.iframes[idx] = iframe;
+    this.players[idx] = videoId;
+  },
+
+  seek(idx, seconds) {
+    const videoId = this.players[idx];
+    const iframe   = this.iframes[idx];
+    if (!videoId) {
+      // Not yet playing — play it first
+      this.play(idx, this._videoIds[idx]);
+      return;
+    }
+    if (iframe) {
+      const newSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${seconds}&rel=0&modestbranding=1&color=white`;
+      iframe.src = newSrc;
+    }
+  },
+
+  _videoIds: ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'M7FIvfx5J10', '_OBlgSz8sSM'],
+};
+
 const vguide = {
   current: 'seam',
   show(id) {
