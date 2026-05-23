@@ -2,8 +2,38 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>LIMINAL — Hidden Door Detector</title>
+
+<!-- PWA core -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#06060a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LIMINAL">
+
+<!-- Icons -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-192.png">
+<link rel="icon" type="image/svg+xml" href="liminal-logo.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-96.png">
+
+<!-- iOS splash screens -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+<!-- SEO / Social -->
+<meta name="description" content="Camera-based hidden door detection — Sobel edge analysis, Hough line scoring, acoustic FFT hollow detection, and Claude Vision AI.">
+<meta property="og:title" content="LIMINAL — Hidden Door Detector">
+<meta property="og:description" content="Point your camera at any wall and find hidden doors using real computer vision and AI analysis.">
+<meta property="og:type" content="website">
+
+<!-- Windows widget -->
+<meta name="msapplication-config" content="none">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -2303,6 +2333,14 @@ const app = {
     this.viewMode = 'annotate'; this.frozen = false;
     this.showScreen('results');
     haptic([15, 50, 15]);
+
+    // Fire widget update event
+    const wPct   = Math.round(results.probability * 100);
+    const wCol   = results.probability > 0.65 ? 'Attention' : results.probability > 0.45 ? 'Warning' : 'Accent';
+    const wLabel = results.probability > 0.65 ? 'HIGH PROBABILITY' : results.probability > 0.45 ? 'MODERATE SIGNAL' : results.probability > 0.28 ? 'WEAK SIGNAL' : 'NO ANOMALIES';
+    document.dispatchEvent(new CustomEvent('scan-complete', {detail: {
+      probability: wPct + '%', label: wLabel, color: wCol, totalScans: String(this.scanCount).padStart(2,'0')
+    }}));
   },
 
   // ── Claude Vision AI analysis ─────────────────────────────
@@ -3205,5 +3243,151 @@ app.reset = function() {
 };
 
 </script>
+
+<script>
+// ── PWA: Service Worker + icon generation ──────────────────────────────────
+(function() {
+  'use strict';
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('[LIMINAL] SW registered:', reg.scope);
+      }).catch(err => console.warn('[LIMINAL] SW error:', err));
+    });
+  }
+
+  // Generate PNG icons from SVG on first install
+  function generateIcons() {
+    const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+      <defs>
+        <radialGradient id="bg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#0d0d18"/><stop offset="100%" stop-color="#06060a"/></radialGradient>
+        <radialGradient id="glow" cx="50%" cy="40%" r="45%"><stop offset="0%" stop-color="#c9a84c" stop-opacity="0.18"/><stop offset="100%" stop-color="#c9a84c" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+      <rect width="512" height="512" rx="100" fill="url(#glow)"/>
+      <circle cx="256" cy="256" r="180" fill="none" stroke="#c9a84c" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.35"/>
+      <rect x="168" y="110" width="176" height="292" rx="6" fill="none" stroke="#c9a84c" stroke-width="2.5" opacity="0.7"/>
+      <rect x="172" y="114" width="84" height="284" rx="4" fill="#c9a84c" opacity="0.04"/>
+      <rect x="256" y="114" width="84" height="284" rx="4" fill="#c9a84c" opacity="0.07"/>
+      <line x1="256" y1="114" x2="256" y2="398" stroke="#c9a84c" stroke-width="2" opacity="0.9"/>
+      <circle cx="286" cy="256" r="12" fill="none" stroke="#c94c4c" stroke-width="2" opacity="0.85"/>
+      <circle cx="286" cy="256" r="4" fill="#c94c4c" opacity="0.9"/>
+      <line x1="270" y1="256" x2="278" y2="256" stroke="#c94c4c" stroke-width="1.5" opacity="0.7"/>
+      <line x1="294" y1="256" x2="302" y2="256" stroke="#c94c4c" stroke-width="1.5" opacity="0.7"/>
+      <line x1="286" y1="240" x2="286" y2="248" stroke="#c94c4c" stroke-width="1.5" opacity="0.7"/>
+      <line x1="286" y1="264" x2="286" y2="272" stroke="#c94c4c" stroke-width="1.5" opacity="0.7"/>
+      <line x1="140" y1="398" x2="372" y2="398" stroke="#c9a84c" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.5"/>
+      <path d="M140 130 L140 110 L168 110" fill="none" stroke="#c9a84c" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+      <path d="M372 130 L372 110 L344 110" fill="none" stroke="#c9a84c" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+      <path d="M140 382 L140 402 L168 402" fill="none" stroke="#c9a84c" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+      <path d="M372 382 L372 402 L344 402" fill="none" stroke="#c9a84c" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+      <text x="256" y="458" font-family="serif" font-size="32" font-weight="700" fill="#e8d5a0" text-anchor="middle" letter-spacing="10" opacity="0.9">LIMINAL</text>
+    </svg>`;
+
+    const img   = new Image();
+    const blob  = new Blob([SVG], {type: 'image/svg+xml'});
+    const url   = URL.createObjectURL(blob);
+    img.onload  = () => {
+      [72,96,128,144,152,192,384,512].forEach(size => {
+        const c   = document.createElement('canvas');
+        c.width   = c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        // Store as blob URL for cache
+        c.toBlob(b => {
+          if (!b) return;
+          const iconUrl = URL.createObjectURL(b);
+          // Update all icon link elements
+          document.querySelectorAll(`link[sizes="${size}x${size}"]`).forEach(el => {
+            el.href = iconUrl;
+          });
+        }, 'image/png');
+      });
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+
+  // Generate icons on load
+  window.addEventListener('load', generateIcons);
+
+  // Handle install prompt
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBanner();
+  });
+
+  function showInstallBanner() {
+    const existing = document.getElementById('install-banner');
+    if (existing) return;
+    const banner = document.createElement('div');
+    banner.id = 'install-banner';
+    banner.style.cssText = `
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 999; display: flex; gap: 10px; align-items: center;
+      background: #0d0d18; border: 1px solid #c9a84c44; border-radius: 12px;
+      padding: 12px 16px; max-width: 340px; width: calc(100% - 40px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      animation: fadeUp 0.3s ease;
+    `;
+    banner.innerHTML = `
+      <div style="font-size:22px;flex-shrink:0">📲</div>
+      <div style="flex:1">
+        <div style="font-family:'Cinzel',serif;font-size:11px;color:#e8d5a0;letter-spacing:0.05em;margin-bottom:2px">ADD TO HOME SCREEN</div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:#666688">Install LIMINAL for offline use + home screen widget</div>
+      </div>
+      <button onclick="installApp()" style="
+        background:#c9a84c18;border:1px solid #c9a84c44;border-radius:8px;
+        padding:8px 12px;color:#c9a84c;font-family:'DM Mono',monospace;
+        font-size:9px;letter-spacing:0.12em;cursor:pointer;flex-shrink:0;
+      ">INSTALL</button>
+      <button onclick="document.getElementById('install-banner').remove()" style="
+        background:transparent;border:none;color:#333355;cursor:pointer;
+        font-size:16px;padding:4px;flex-shrink:0;
+      ">✕</button>
+    `;
+    document.body.appendChild(banner);
+  }
+
+  window.installApp = async function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      document.getElementById('install-banner')?.remove();
+    }
+    deferredPrompt = null;
+  };
+
+  // Handle shortcuts from manifest
+  const params = new URLSearchParams(location.search);
+  const action = params.get('action');
+  if (action === 'scan')   window.addEventListener('load', () => setTimeout(() => app.startCamera?.(), 500));
+  if (action === 'manual') window.addEventListener('load', () => setTimeout(() => app.showScreen?.('manual'), 500));
+
+  // Push widget updates after each scan
+  const _origCapture = null; // hooked below after app init
+  window.addEventListener('load', () => {
+    // Hook into scan completion to update widget
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      document.addEventListener('scan-complete', e => {
+        navigator.serviceWorker.controller?.postMessage({
+          type:       'WIDGET_UPDATE',
+          probability: e.detail.probability,
+          label:       e.detail.label,
+          color:       e.detail.color,
+          time:        new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+          totalScans:  e.detail.totalScans,
+        });
+      });
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
