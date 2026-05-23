@@ -1,0 +1,84 @@
+{
+  "name": "LIMINAL — Hidden Door Detector",
+  "short_name": "LIMINAL",
+  "description": "Camera-based hidden door detection using Sobel edge analysis, Hough line scoring, acoustic FFT, and Claude Vision AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#06060a",
+  "theme_color": "#06060a",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "tools"],
+  "lang": "en",
+  "icons": [
+    { "src": "icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "liminal-logo.svg", "sizes": "any",  "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-home.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "LIMINAL home screen — camera scan, visual guide, tutorials"
+    },
+    {
+      "src": "screenshot-results.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Detection results — probability ring, zone analysis, AI findings"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Camera Scan",
+      "short_name": "Scan",
+      "description": "Open camera directly to scan a wall",
+      "url": "/?action=scan",
+      "icons": [{ "src": "icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Manual Checklist",
+      "short_name": "Checklist",
+      "description": "Physical inspection checklist",
+      "url": "/?action=manual",
+      "icons": [{ "src": "icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "LIMINAL Quick Scan",
+      "short_name": "Quick Scan",
+      "description": "Recent scan results and quick-launch camera",
+      "tag": "liminal-widget",
+      "template": "liminal-widget-template",
+      "ms_ac_template": "adaptive-card.json",
+      "data": "widget-data.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "widget-screenshot.png",
+          "sizes": "1000x400",
+          "label": "LIMINAL widget showing last scan result"
+        }
+      ],
+      "icons": [{ "src": "icon-96.png", "sizes": "96x96" }],
+      "backgrounds": [{ "src": "widget-bg.png", "sizes": "1000x400" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  }
+}
