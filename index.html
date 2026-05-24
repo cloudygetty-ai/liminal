@@ -1051,6 +1051,7 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
     <button class="sec-btn" onclick="app.flipCamera()">↺ FLIP</button>
     <button class="sec-btn" id="luma-btn"  onclick="app.toggleLuma()">📊 LUMA</button>
     <button class="sec-btn" id="baseline-btn" onclick="app.captureBaseline()" title="Scan a clean wall first — improves accuracy">⊞ BASELINE</button>
+    <button class="sec-btn" id="session-btn" onclick="app.toggleSessionMode()" title="Multi-wall session mode">⊞ SESSION</button>
   </div>
 
   <div class="tips-grid">
@@ -1087,6 +1088,7 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
       <canvas id="fft-canvas"></canvas>
       <div class="sensor-detail" id="fft-detail">Knock on wall — hollow cavity changes resonance</div>
       <div class="hollow-badge" id="hollow-badge">⚠ HOLLOW DETECTED</div>
+      <button class="sensor-btn" id="fft-ref-btn" onclick="sensors.captureRef()" style="margin-bottom:4px">⊞ SET REF WALL</button>
       <button class="sensor-btn" id="fft-btn" onclick="sensors.fftToggle()">START MIC</button>
     </div>
   </div>
@@ -1138,6 +1140,13 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
   <div class="section-label" id="findings-label">ANOMALIES DETECTED</div>
   <div id="findings-container" class="mb-12"></div>
 
+  <!-- Room summary (session mode) -->
+  <div class="room-summary" id="room-summary" style="display:none">
+    <div class="section-label">ROOM SCAN SUMMARY</div>
+    <div id="room-summary-body"></div>
+    <div class="room-wall-grid" id="room-wall-grid"></div>
+  </div>
+
   <!-- Door location analysis -->
   <div class="location-section" id="location-section" style="display:none">
     <div class="section-label">DOOR LOCATION ANALYSIS</div>
@@ -1147,6 +1156,18 @@ html, body { background: var(--bg); color: var(--text-dim); font-family: 'DM Mon
   <button class="btn btn-primary mb-8" onclick="app.startCamera()">📷 &nbsp; SCAN ANOTHER SURFACE</button>
   <button class="btn btn-ghost mb-8" onclick="app.showScreen('manual')">📋 &nbsp; MANUAL INSPECTION</button>
   <button class="btn btn-ghost" onclick="app.reset()">RESET</button>
+</div>
+
+<!-- HISTORY -->
+<div id="screen-history" class="screen">
+  <div style="padding:16px 20px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="section-label" style="margin:0">SCAN HISTORY</div>
+      <button onclick="app.clearHistory()" style="font-size:8px;letter-spacing:0.1em;padding:4px 10px;border-radius:7px;border:1px solid #c94c4c33;background:transparent;color:#c94c4c;cursor:pointer;font-family:'DM Mono',monospace">CLEAR ALL</button>
+    </div>
+    <div id="history-list"></div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="app.showScreen('home')">← BACK</button>
+  </div>
 </div>
 
 <!-- MANUAL -->
@@ -2053,17 +2074,20 @@ const app = {
 
   showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + id).classList.add('active');
+    const target = document.getElementById('screen-' + id);
+    if (target) target.classList.add('active');
     const titles = {
       home:    ['Hidden Door Scanner',  'Camera vision · Pixel analysis · Physical tells'],
-      camera:  ['Camera Scan Mode',     'Pinch zoom · Tap focus · Torch · Freeze'],
+      camera:  ['Camera Scan Mode',     'Pinch zoom · Tap focus · Torch · Freeze · Edge overlay'],
       results: ['Detection Report',     'Pixel analysis complete'],
       manual:  ['Manual Checklist',     'Physical inspection protocol'],
+      history: ['Scan History',         'Persistent scan database — IndexedDB'],
     };
     if (titles[id]) {
       document.getElementById('page-title').textContent = titles[id][0];
       document.getElementById('page-sub').textContent   = titles[id][1];
     }
+    if (id === 'history') this._renderHistoryScreen();
     window.scrollTo(0, 0);
   },
 
@@ -2109,10 +2133,75 @@ const app = {
 
       this.showScreen('camera');
       this._startLuma();
+      if (sessionMode.active) sessionMode._render();
+      // Auto-start live edge overlay if toggled
+      if (this.liveEdgeOn) {
+        vid.addEventListener('loadedmetadata', () => {
+          liveEdge.start(vid);
+          const ov = document.getElementById('edge-overlay');
+          if (ov) ov.classList.add('active');
+        }, {once: true});
+      }
       haptic(10);
     } catch (err) {
       alert('Camera access required.\n\n' + (err.message || 'Permission denied.'));
     }
+  },
+
+  liveEdgeOn: false,
+
+  toggleLiveEdge() {
+    this.liveEdgeOn = !this.liveEdgeOn;
+    const btn = document.getElementById('edge-live-btn');
+    const ov  = document.getElementById('edge-overlay');
+    if (btn) btn.classList.toggle('active', this.liveEdgeOn);
+    if (this.liveEdgeOn) {
+      const vid = document.getElementById('camera-video');
+      if (vid && vid.readyState >= 2) { liveEdge.start(vid); if (ov) ov.classList.add('active'); }
+    } else { liveEdge.stop(); if (ov) ov.classList.remove('active'); }
+    document.getElementById('cam-mode-tag').textContent = this.liveEdgeOn ? 'EDGE MODE' : 'SCAN READY';
+  },
+
+  toggleSessionMode() {
+    sessionMode.active ? sessionMode.stop() : sessionMode.start();
+  },
+
+  async shareResult() {
+    if (!this.capturedCanvas || !this.lastResults) return;
+    const dataUrl = await shareCard.generate(this.capturedCanvas, this.lastResults);
+    await shareCard.share(dataUrl, this.lastResults.probability);
+  },
+
+  async clearHistory() {
+    if (!confirm('Clear all scan history?')) return;
+    await scanDB.clear();
+    this._renderHistoryScreen();
+  },
+
+  async _renderHistoryScreen() {
+    const el = document.getElementById('history-list');
+    if (!el) return;
+    try {
+      const records = await scanDB.getAll();
+      if (!records.length) {
+        el.innerHTML = '<div style="text-align:center;padding:40px 0;font-size:10px;color:var(--text-ghost);line-height:2.2">No scans saved yet.<br>Complete a camera scan to save it here.</div>';
+        return;
+      }
+      el.innerHTML = '';
+      records.forEach(r => {
+        const col = r.probability > 0.65 ? '#c94c4c' : r.probability > 0.45 ? '#c9a84c' : '#4c94c9';
+        const div = document.createElement('div');
+        div.className = 'history-entry';
+        div.innerHTML = `
+          ${r.thumb ? `<img class="history-entry-thumb" src="${r.thumb}">` : '<div class="history-entry-thumb" style="background:var(--surface2)"></div>'}
+          <div class="history-entry-info">
+            <div class="history-entry-prob" style="color:${col}">${Math.round(r.probability*100)}%</div>
+            <div class="history-entry-meta">${r.label||'SCAN'} · ${r.findings||0} anomalies · ${r.date||''}</div>
+            ${r.aiProbability ? `<div style="font-size:8px;color:#c9a84c55;margin-top:2px">AI: ${r.aiProbability}%</div>` : ''}
+          </div><div style="font-size:16px;color:var(--text-ghost)">›</div>`;
+        el.appendChild(div);
+      });
+    } catch { el.innerHTML = '<div style="text-align:center;padding:20px;font-size:10px;color:var(--text-ghost)">Could not load history.</div>'; }
   },
 
   stopStream() {
@@ -2532,6 +2621,26 @@ const app = {
     this.viewMode = 'annotate'; this.frozen = false;
     this.showScreen('results');
     haptic([15, 50, 15]);
+
+    // ── Save to IndexedDB history ───────────────────────────
+    scanDB.save({
+      probability:   results.probability,
+      findings:      results.findings?.length || 0,
+      aiProbability: null,  // updated when AI responds
+      thumb:         canvas.toDataURL('image/jpeg', 0.3),
+      label:         sessionMode.active ? sessionMode.walls[sessionMode.current - 1]?.label || 'SCAN' : 'SCAN',
+      date:          new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}),
+      metrics:       {edgeComplexity: results.metrics?.edgeComplexity, symmetryBreak: results.metrics?.symmetryBreak},
+    }).catch(() => {});
+
+    // ── Record in session mode ───────────────────────────────
+    if (sessionMode.active) {
+      sessionMode.recordScan(results);
+      sessionMode.renderSummary();
+    }
+
+    // Stop live edge overlay on capture
+    liveEdge.stop();
 
     // Fire widget update event
     const wPct   = Math.round(results.probability * 100);
@@ -3073,6 +3182,456 @@ const vguide = {
   },
 };
 
+
+// ═══════════════════════════════════════════════════════════
+//  FEATURE 1 — Real-time Sobel edge overlay on live camera
+// ═══════════════════════════════════════════════════════════
+const liveEdge = {
+  active:  false,
+  raf:     null,
+  canvas:  null,
+  ctx:     null,
+  video:   null,
+  scratch: null,   // offscreen canvas for pixel work
+
+  start(video) {
+    this.video   = video;
+    this.canvas  = document.getElementById('edge-overlay');
+    this.ctx     = this.canvas.getContext('2d');
+    this.scratch = document.createElement('canvas');
+    this.active  = true;
+    this._loop();
+  },
+
+  stop() {
+    this.active = false;
+    if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; }
+    if (this.ctx && this.canvas) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  },
+
+  _loop() {
+    if (!this.active) return;
+    // Target ~10fps to save battery
+    this.raf = requestAnimationFrame(() => {
+      setTimeout(() => this._loop(), 80);
+    });
+    this._process();
+  },
+
+  _process() {
+    const vid = this.video;
+    if (!vid || vid.readyState < 2 || vid.paused) return;
+
+    const vW = vid.videoWidth  || 320;
+    const vH = vid.videoHeight || 240;
+    const OC = this.canvas;
+    OC.width  = OC.offsetWidth  || vW;
+    OC.height = OC.offsetHeight || vH;
+    const oCtx = this.ctx;
+
+    // Downsample for performance: work at 1/4 resolution
+    const dW = Math.floor(vW / 4);
+    const dH = Math.floor(vH / 4);
+    const sc  = this.scratch;
+    sc.width  = dW;
+    sc.height = dH;
+    const sCtx = sc.getContext('2d', {willReadFrequently: true});
+    sCtx.drawImage(vid, 0, 0, dW, dH);
+
+    const imgD = sCtx.getImageData(0, 0, dW, dH);
+    const data = imgD.data;
+    const luma = i => data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+
+    oCtx.clearRect(0, 0, OC.width, OC.height);
+
+    // Sobel — find strong vertical edges and draw as gold lines on overlay
+    const scaleX = OC.width  / dW;
+    const scaleY = OC.height / dH;
+    const threshold = 35;
+
+    for (let y = 1; y < dH - 1; y++) {
+      for (let x = 1; x < dW - 1; x++) {
+        const gx = Math.abs(luma((y*dW+(x+1))*4) - luma((y*dW+(x-1))*4));
+        const gy = Math.abs(luma(((y+1)*dW+x)*4) - luma(((y-1)*dW+x)*4));
+        // Only strong vertical edges (potential seams)
+        if (gx > threshold && gy < gx * 0.5) {
+          const strength = Math.min((gx - threshold) / 80, 1);
+          const px = x * scaleX;
+          const py = y * scaleY;
+          // Draw gold dot — brighter = stronger edge
+          oCtx.fillStyle = `rgba(201,168,76,${strength * 0.7})`;
+          oCtx.fillRect(px - 1, py - 1, scaleX + 1, scaleY + 1);
+        }
+      }
+    }
+
+    // Column vote accumulation — highlight dominant vertical lines
+    const votes = new Int32Array(dW);
+    for (let y = 1; y < dH - 1; y++) {
+      for (let x = 1; x < dW - 1; x++) {
+        const gx = Math.abs(luma((y*dW+(x+1))*4) - luma((y*dW+(x-1))*4));
+        const gy = Math.abs(luma(((y+1)*dW+x)*4) - luma(((y-1)*dW+x)*4));
+        if (gx > threshold && gy < gx * 0.5) votes[x]++;
+      }
+    }
+    const maxVote = Math.max(...votes, 1);
+    for (let x = 2; x < dW - 2; x++) {
+      const strength = votes[x] / maxVote;
+      if (strength > 0.55) {
+        const px = x * scaleX;
+        const col = strength > 0.8 ? `rgba(201,84,76,${strength * 0.6})` : `rgba(201,168,76,${strength * 0.5})`;
+        oCtx.strokeStyle = col;
+        oCtx.lineWidth   = strength > 0.8 ? 2.5 : 1.5;
+        oCtx.beginPath();
+        oCtx.moveTo(px, 0); oCtx.lineTo(px, OC.height);
+        oCtx.stroke();
+        // Label strong seam candidates
+        if (strength > 0.75) {
+          oCtx.fillStyle = 'rgba(201,84,76,0.85)';
+          oCtx.font = '8px "DM Mono", monospace';
+          oCtx.fillText('SEAM', px + 4, 18);
+        }
+      }
+    }
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  FEATURE 2 — Acoustic spectral cross-correlation
+//  Compare knock FFT against reference wall signature
+// ═══════════════════════════════════════════════════════════
+const acousticRef = {
+  referenceSpectrum: null,  // Float32Array — baseline solid wall spectrum
+  captureNext:       false, // flag: next knock = reference capture
+
+  captureReference(fftAnalyser, sampleRate) {
+    if (!fftAnalyser) return;
+    const data = new Float32Array(fftAnalyser.frequencyBinCount);
+    fftAnalyser.getFloatFrequencyData(data);
+    this.referenceSpectrum = data.slice();
+    document.getElementById('fft-detail').textContent = 'Reference saved — knock on suspect wall now';
+    haptic([10, 30, 10]);
+  },
+
+  // Cross-correlation score: 0 = identical to reference, 1 = maximally different
+  correlate(currentSpectrum) {
+    if (!this.referenceSpectrum || !currentSpectrum) return null;
+    const n = Math.min(this.referenceSpectrum.length, currentSpectrum.length);
+    let dot = 0, normRef = 0, normCur = 0;
+    for (let i = 0; i < n; i++) {
+      const r = this.referenceSpectrum[i] + 140; // normalize from dBFS
+      const c = currentSpectrum[i] + 140;
+      dot     += r * c;
+      normRef += r * r;
+      normCur += c * c;
+    }
+    const cosine = dot / (Math.sqrt(normRef * normCur) + 1e-9);
+    return 1 - cosine; // 0 = same, higher = different (cavity)
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  FEATURE 3 — Compass + room floor plan builder
+// ═══════════════════════════════════════════════════════════
+const floorPlan = {
+  active:   false,
+  heading:  0,
+  corners:  [],
+  canvas:   null,
+
+  start() {
+    if (typeof DeviceOrientationEvent === 'undefined') return;
+    this.active = true;
+    const handler = e => {
+      this.heading = e.webkitCompassHeading || e.alpha || 0;
+    };
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(s => {
+        if (s === 'granted') window.addEventListener('deviceorientation', handler, true);
+      }).catch(() => {});
+    } else {
+      window.addEventListener('deviceorientation', handler, true);
+    }
+    this._handler = handler;
+  },
+
+  stop() {
+    this.active = false;
+    if (this._handler) window.removeEventListener('deviceorientation', this._handler, true);
+  },
+
+  addCorner() {
+    this.corners.push({heading: this.heading, timestamp: Date.now()});
+    haptic([5, 20]);
+    return this.corners.length;
+  },
+
+  // Returns cardinal direction label for current heading
+  getDirection() {
+    const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+    return dirs[Math.round(this.heading / 45) % 8];
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  FEATURE 4 — IndexedDB scan history
+// ═══════════════════════════════════════════════════════════
+const scanDB = {
+  db: null,
+  STORE: 'scans',
+
+  async open() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('LIMINAL_SCANS', 2);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(this.STORE)) {
+          const store = db.createObjectStore(this.STORE, {keyPath: 'id', autoIncrement: true});
+          store.createIndex('timestamp', 'timestamp', {unique: false});
+          store.createIndex('probability', 'probability', {unique: false});
+        }
+      };
+      req.onsuccess = e => { this.db = e.target.result; res(this.db); };
+      req.onerror   = () => rej(req.error);
+    });
+  },
+
+  async save(record) {
+    if (!this.db) await this.open();
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction(this.STORE, 'readwrite');
+      const req = tx.objectStore(this.STORE).add(record);
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+  },
+
+  async getAll() {
+    if (!this.db) await this.open();
+    return new Promise((res, rej) => {
+      const tx  = this.db.transaction(this.STORE, 'readonly');
+      const req = tx.objectStore(this.STORE).index('timestamp').getAll();
+      req.onsuccess = () => res(req.result.reverse()); // newest first
+      req.onerror   = () => rej(req.error);
+    });
+  },
+
+  async clear() {
+    if (!this.db) await this.open();
+    return new Promise((res, rej) => {
+      const tx  = this.db.transaction(this.STORE, 'readwrite');
+      const req = tx.objectStore(this.STORE).clear();
+      req.onsuccess = () => res();
+      req.onerror   = () => rej(req.error);
+    });
+  },
+};
+
+// Initialize DB on load
+scanDB.open().catch(() => {});
+
+// ═══════════════════════════════════════════════════════════
+//  FEATURE 5 — Share card generator (Web Share API)
+// ═══════════════════════════════════════════════════════════
+const shareCard = {
+  async generate(capturedCanvas, results) {
+    const W = 800, H = 420;
+    const c   = document.getElementById('share-card-canvas');
+    c.width   = W; c.height = H;
+    const ctx = c.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#06060a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Gold border
+    ctx.strokeStyle = '#c9a84c33';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(1, 1, W - 2, H - 2);
+
+    // Captured image — left half
+    if (capturedCanvas) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(capturedCanvas, 0, 0, W * 0.48, H);
+      ctx.restore();
+      // Gradient fade to right
+      const fadeGrad = ctx.createLinearGradient(W * 0.28, 0, W * 0.52, 0);
+      fadeGrad.addColorStop(0, 'transparent');
+      fadeGrad.addColorStop(1, '#06060a');
+      ctx.fillStyle = fadeGrad;
+      ctx.fillRect(0, 0, W * 0.52, H);
+    }
+
+    // Logo mark (simplified)
+    const lx = 42, ly = 32;
+    ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.7;
+    ctx.strokeRect(lx, ly, 28, 36);
+    ctx.beginPath(); ctx.moveTo(lx + 14, ly); ctx.lineTo(lx + 14, ly + 36); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // LIMINAL wordmark
+    ctx.font = 'bold 11px "DM Mono", monospace';
+    ctx.fillStyle = '#c9a84c'; ctx.letterSpacing = '4px';
+    ctx.fillText('LIMINAL', lx + 34, ly + 13);
+    ctx.font = '8px "DM Mono", monospace';
+    ctx.fillStyle = '#444466';
+    ctx.fillText('DETECTION SYSTEM', lx + 34, ly + 26);
+
+    // Right panel — results
+    const rx = W * 0.54;
+    const pct = Math.round(results.probability * 100);
+    const color = results.probability > 0.65 ? '#c94c4c' : results.probability > 0.45 ? '#c9a84c' : '#4c94c9';
+
+    // Big probability
+    ctx.font = `bold ${Math.round(H * 0.3)}px "Cinzel", serif`;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.12;
+    ctx.fillText(pct + '%', rx - 8, H * 0.72);
+    ctx.globalAlpha = 1;
+
+    ctx.font = `bold ${Math.round(H * 0.18)}px "Cinzel", serif`;
+    ctx.fillStyle = color;
+    ctx.fillText(pct + '%', rx + 10, H * 0.52);
+
+    // Label
+    const label = results.probability > 0.65 ? 'HIGH PROBABILITY' : results.probability > 0.45 ? 'MODERATE SIGNAL' : results.probability > 0.28 ? 'WEAK SIGNAL' : 'NO ANOMALIES';
+    ctx.font = '11px "DM Mono", monospace';
+    ctx.fillStyle = color;
+    ctx.fillText(label, rx + 10, H * 0.6);
+
+    // Subtitle
+    ctx.font = '9px "DM Mono", monospace';
+    ctx.fillStyle = '#444466';
+    ctx.fillText('HIDDEN DOOR PROBABILITY', rx + 10, H * 0.68);
+
+    // Findings count
+    if (results.findings?.length) {
+      ctx.font = '9px "DM Mono", monospace';
+      ctx.fillStyle = '#666688';
+      ctx.fillText(`${results.findings.length} ANOMAL${results.findings.length === 1 ? 'Y' : 'IES'} DETECTED`, rx + 10, H * 0.78);
+    }
+
+    // Top findings
+    (results.findings || []).slice(0, 3).forEach((f, i) => {
+      const fc = f.confidence === 'HIGH' ? '#c94c4c' : f.confidence === 'MEDIUM' ? '#c9a84c' : '#4c94c9';
+      ctx.font = '8px "DM Mono", monospace';
+      ctx.fillStyle = fc;
+      ctx.fillText(`${f.icon} ${f.label}`, rx + 10, H * 0.78 + 18 + i * 16);
+    });
+
+    // Footer
+    ctx.font = '8px "DM Mono", monospace';
+    ctx.fillStyle = '#222233';
+    ctx.fillText('liminal.vercel.app', W - 160, H - 14);
+
+    return c.toDataURL('image/png');
+  },
+
+  async share(dataUrl, probability) {
+    if (navigator.share && navigator.canShare) {
+      try {
+        const res  = await fetch(dataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'liminal-scan.png', {type: 'image/png'});
+        if (navigator.canShare({files: [file]})) {
+          await navigator.share({
+            title:  `LIMINAL Scan — ${Math.round(probability * 100)}% Hidden Door Probability`,
+            text:   'Scanned with LIMINAL Hidden Door Detector — liminal.vercel.app',
+            files:  [file],
+          });
+          return true;
+        }
+      } catch {}
+    }
+    // Fallback: download
+    const a  = document.createElement('a');
+    a.href   = dataUrl;
+    a.download = `liminal-scan-${Date.now()}.png`;
+    a.click();
+    return true;
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  FEATURE 6 — Multi-wall session mode
+// ═══════════════════════════════════════════════════════════
+const sessionMode = {
+  active:  false,
+  walls:   [],
+  current: 0,
+  LABELS:  ['NORTH', 'EAST', 'SOUTH', 'WEST', 'NW', 'NE', 'SE', 'SW'],
+
+  start() {
+    this.active  = true;
+    this.walls   = this.LABELS.slice(0, 4).map((l, i) => ({label: l, scanned: false, probability: 0, color: '#333355', results: null}));
+    this.current = 0;
+    this._render();
+    document.getElementById('session-btn').classList.add('active');
+    document.getElementById('session-btn').textContent = '⊠ SESSION ON';
+    haptic([10, 20, 10]);
+  },
+
+  stop() {
+    this.active = false;
+    document.getElementById('session-btn').classList.remove('active');
+    document.getElementById('session-btn').textContent = '⊞ SESSION';
+    const bar = document.getElementById('session-wall-bar');
+    if (bar) bar.style.display = 'none';
+  },
+
+  recordScan(results) {
+    if (!this.active || this.current >= this.walls.length) return;
+    const wall = this.walls[this.current];
+    wall.scanned     = true;
+    wall.probability = results.probability;
+    wall.color       = results.probability > 0.65 ? '#c94c4c' : results.probability > 0.45 ? '#c9a84c' : '#4c94c9';
+    wall.results     = results;
+    this._render();
+    // Auto-advance to next wall
+    if (this.current < this.walls.length - 1) this.current++;
+  },
+
+  renderSummary() {
+    const el = document.getElementById('room-summary');
+    const body = document.getElementById('room-summary-body');
+    const grid = document.getElementById('room-wall-grid');
+    if (!el || !this.active) return;
+
+    const scanned = this.walls.filter(w => w.scanned);
+    if (scanned.length < 2) { el.style.display = 'none'; return; }
+
+    el.style.display = 'block';
+    const best = scanned.reduce((a, b) => b.probability > a.probability ? b : a);
+    body.innerHTML = `<div style="font-size:9px;color:var(--text-muted);margin-bottom:8px">${scanned.length} of ${this.walls.length} walls scanned · Primary candidate: <span style="color:${best.color};font-weight:600">${best.label} WALL (${Math.round(best.probability*100)}%)</span></div>`;
+
+    grid.innerHTML = '';
+    this.walls.forEach(w => {
+      const tier = w.probability > 0.65 ? 'high' : w.probability > 0.45 ? 'medium' : 'low';
+      grid.innerHTML += `<div class="room-wall-cell ${w.scanned ? tier : ''}">
+        <div style="font-size:8px;letter-spacing:0.12em;color:${w.color};margin-bottom:3px">${w.label}</div>
+        <div style="font-size:16px;font-family:'Cinzel',serif;font-weight:600;color:${w.color}">${w.scanned ? Math.round(w.probability*100)+'%' : '—'}</div>
+        <div style="font-size:8px;color:var(--text-ghost)">${w.scanned ? (w.results?.findings?.length || 0)+' anomalies' : 'NOT SCANNED'}</div>
+      </div>`;
+    });
+  },
+
+  _render() {
+    let bar = document.getElementById('session-wall-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'session-wall-bar';
+      bar.style.cssText = 'padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border)';
+      const camScreen = document.getElementById('screen-camera');
+      if (camScreen) camScreen.insertBefore(bar, camScreen.firstChild);
+    }
+    bar.style.display = this.active ? 'block' : 'none';
+    bar.innerHTML = `<div style="font-size:7px;letter-spacing:0.2em;color:var(--text-ghost);margin-bottom:5px">SESSION — SCANNING ${this.walls[this.current]?.label || ''} WALL</div><div style="display:flex;gap:5px">` +
+      this.walls.map((w, i) => `<div style="flex:1;height:3px;border-radius:1px;background:${w.scanned ? w.color : i === this.current ? '#c9a84c44' : 'var(--border)'}"></div>`).join('') +
+      '</div>';
+  },
+};
+
 buildManualChecklist();
 
 // ═══════════════════════════════════════════════════════════
@@ -3378,7 +3937,13 @@ const sensors = {
 
         document.getElementById('fft-readout').textContent = Math.round(maxDb) + ' dB';
 
-        if (avgRatio > this.HOLLOW_RATIO_THRESHOLD) {
+        // Cross-correlation against reference spectrum if available
+        const crossCorr = acousticRef.correlate(freqData);
+        const hollowSignal = crossCorr !== null
+          ? (avgRatio * 0.5 + crossCorr * 0.5)  // blend ratio + correlation
+          : avgRatio;                             // ratio only if no reference
+
+        if (hollowSignal > this.HOLLOW_RATIO_THRESHOLD) {
           this._fftSetStatus('detected', 'HOLLOW');
           document.getElementById('fft-panel').classList.add('alert');
           document.getElementById('hollow-badge').classList.add('show');
@@ -3389,8 +3954,9 @@ const sensors = {
           this._fftSetStatus('running', 'SOLID');
           document.getElementById('fft-panel').classList.remove('alert');
           document.getElementById('hollow-badge').classList.remove('show');
+          const corrInfo = crossCorr !== null ? ` (Δ${(crossCorr*100).toFixed(0)}% vs ref)` : '';
           document.getElementById('fft-detail').textContent =
-            `High-freq dominant ${Math.round((1-avgRatio)*100)}% — solid wall signature`;
+            `Solid signature ${Math.round((1-avgRatio)*100)}%${corrInfo}`;
         }
       } else {
         // Below noise floor — waiting for knock
@@ -3402,6 +3968,16 @@ const sensors = {
       }
     };
     draw();
+  },
+
+  captureRef() {
+    if (!this.fftAnalyser) {
+      document.getElementById('fft-detail').textContent = 'Start mic first, then knock on a solid wall to save reference';
+      return;
+    }
+    acousticRef.captureReference(this.fftAnalyser, this.fftCtx?.sampleRate || 44100);
+    document.getElementById('fft-ref-btn').textContent = '✓ REF SAVED';
+    document.getElementById('fft-ref-btn').style.color = '#4cc98b';
   },
 
   fftStop() {
